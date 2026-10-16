@@ -123,7 +123,7 @@ function drawMap(){
   if(!term){
     regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--nodata)",p===prov,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
     $("natbtn").textContent="All of Canada";$("natbtn").classList.toggle("on",prov==="NAT");
-    $("scale").innerHTML='<div class="leg2"><span>Choose a term above to colour the map.</span></div>';
+    $("scale").innerHTML='<div class="leg2"><span></span></div>';
     $("maptitle").textContent="Choose a term";
     return;
   }
