@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canadian Headline Terms</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1d1d1b;--mute:#6b6b66;--card:#fff;--line:#dcdcd6;--nodata:#ecebe6;
+--left:#2a6fb0;--center:#7a7a7a;--right:#c0392b;--ramp0:#eaf2f8;--ramp1:#1b4f7a;}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ececea;--mute:#9a9a94;--card:#1f1f1d;--line:#3a3a36;
+--nodata:#262624;--left:#5aa0e0;--center:#a0a0a0;--right:#e5685a;--ramp0:#1f2b36;--ramp1:#7cc0f0;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 18px;max-width:62ch}
+.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px}
+select,button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button.on{border-color:var(--fg)}
+.slider{flex:1;min-width:220px;display:flex;align-items:center;gap:10px}
+.slider input{flex:1}
+.q{font-variant-numeric:tabular-nums;min-width:6.5em}
+.grid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:20px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{font-size:14px;margin:0 0 8px;color:var(--mute);font-weight:600}
+svg text{fill:var(--fg);font-family:inherit}
+.tile{cursor:pointer}.tile.nodata{cursor:default}
+.tile rect{stroke:var(--line);stroke-width:1}.tile.sel rect{stroke:var(--fg);stroke-width:2.5}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
+.sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.note{color:var(--mute);font-size:13px;margin-top:14px;max-width:80ch}
+#tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:6px;
+padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:5}
+</style>
+</head>
+<body>
+<main>
+<h1>Canadian headline terms, 2019 to now</h1>
+<p class="sub">How often a term appears in headlines, per 1,000, by province of the outlet. Click a tile for that province's outlets over time. Grey tiles have no usable data for the chosen period.</p>
+<div class="controls">
+  <label>Term <select id="term"></select></label>
+  <div class="slider"><input id="qslider" type="range" min="0" value="0"><span class="q" id="qlabel"></span></div>
+  <button id="allbtn" class="on">All quarters</button>
+</div>
+<div class="grid">
+  <div class="card"><h2 id="maptitle">Map</h2><svg id="map" width="100%" viewBox="0 0 410 220"></svg><div id="scale" class="note" style="margin-top:6px"></div></div>
+  <div class="card"><h2 id="charttitle">Select a province</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
+</div>
+<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Line colour is the outlet's Ground News leaning (blue = left/lean left, grey = center, red = lean right/right). Postmedia owns most red outlets and shares content between them. . Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
+</main>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script>
+const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
+const TILES = {YT:[0,0],NT:[1,0],NU:[2,0],BC:[0,1],AB:[1,1],SK:[2,1],MB:[3,1],ON:[4,1],QC:[5,1],NB:[6,1],NL:[7,1],PE:[6,2],NS:[7,2],NAT:[0,3]};
+const NAMES = {YT:"Yukon",NT:"N.W.T.",NU:"Nunavut",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:"All outlets (national)"};
+const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
+const S = 46, GAP = 4, X0 = 6, Y0 = 6;
+let term = D.terms[0], sel = -1, prov = null;
+
+const $ = id => document.getElementById(id);
+function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+function outletsIn(p){return Object.keys(D.outlets).filter(o=>D.outlets[o].province===p)}
+function mean(a){a=a.filter(v=>v!==null&&v!==undefined);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
+// province value at quarter index i (mean over its outlets with data), or null
+function members(p){return p==="NAT"?Object.keys(D.outlets):outletsIn(p)}
+function provQ(p,i){return mean(members(p).map(o=>D.rates[term][o][i]))}
+function groupOutlets(g){return Object.keys(D.outlets).filter(o=>D.outlets[o].group===g)}
+function groupQ(g,i){return mean(groupOutlets(g).map(o=>D.rates[term][o][i]))}
+function groupN(g,i){return groupOutlets(g).filter(o=>D.rates[term][o][i]!==null).length}
+const GNAME={left:"Left",center:"Center",right:"Right"};
+function provVal(p){
+  if(sel>=0)return provQ(p,sel);
+  return mean(Q.map((_,i)=>provQ(p,i)));
+}
+function fmt(v){return v===null?"no data":v.toFixed(v<10?2:1)}
+function colour(t){ // 0..1 -> ramp
+  const cs=getComputedStyle(document.documentElement);
+  const a=cs.getPropertyValue("--ramp0").trim(),b=cs.getPropertyValue("--ramp1").trim();
+  const pa=hex(a),pb=hex(b);return "rgb("+pa.map((x,i)=>Math.round(x+(pb[i]-x)*t)).join(",")+")"}
+function hex(h){h=h.replace("#","");return [0,2,4].map(i=>parseInt(h.substr(i,2),16))}
+
+function drawMap(){
+  const svg=$("map");svg.innerHTML="";
+  const vals={};let max=0;
+  for(const p in TILES){vals[p]=provVal(p);if(vals[p]!==null)max=Math.max(max,vals[p])}
+  // fixed colour scale across time for this term so the slider is comparable
+  let top=0;for(const p in TILES){for(let i=0;i<Q.length;i++){const v=provQ(p,i);if(v!==null)top=Math.max(top,v)}}
+  top=top||1;
+  for(const p in TILES){
+    const [c,r]=TILES[p],x=X0+c*(S+GAP),y=Y0+r*(S+GAP),v=vals[p];
+    const has=v!==null,g=el("g",{class:"tile"+(has?"":" nodata")+(p===prov?" sel":"")},svg);
+    const w=p==="NAT"?S*2+GAP:S;
+    const rc=el("rect",{x,y,width:w,height:S,rx:6,fill:has?colour(Math.min(1,v/top)):"var(--nodata)"},g);
+    const dark=has&&v/top>0.55;
+    el("text",{x:x+w/2,y:y+19,"text-anchor":"middle","font-size":12,"font-weight":600,fill:dark?"#fff":"var(--fg)"},g).textContent=p==="NAT"?"National":p;
+    g.lastChild.style.fill=dark?"#fff":"";
+    const t2=el("text",{x:x+w/2,y:y+35,"text-anchor":"middle","font-size":11},g);t2.textContent=has?fmt(v):"–";
+    t2.style.fill=dark?"#fff":"";
+    const n=members(p).length;
+    g.addEventListener("mousemove",e=>tip(e,`<b>${NAMES[p]}</b><br>${has?fmt(v)+" per 1,000":"no data in this period"}<br>${n} outlet${n===1?"":"s"} in dataset`));
+    g.addEventListener("mouseleave",()=>$("tip").style.display="none");
+    if(has||n)g.addEventListener("click",()=>{prov=p;draw()});
+  }
+  $("scale").textContent=`Darkest = ${top.toFixed(top<10?2:1)} per 1,000 headlines (the highest any province reaches for this term in any quarter).`;
+  $("maptitle").textContent=`“${term}” — ${sel>=0?Q[sel]:"all quarters"}`;
+}
+function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
+
+function drawChart(){
+  const svg=$("chart"),lg=$("legend");svg.innerHTML="";lg.innerHTML="";
+  if(!prov){$("charttitle").textContent="Select a province";return}
+  const isNat=prov==="NAT",outs=isNat?[]:outletsIn(prov);
+  $("charttitle").textContent=`${NAMES[prov]}: “${term}” per 1,000 headlines`;
+  if(!isNat&&!outs.length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No outlets from this province in the dataset.";return}
+  const lines=isNat
+    ?["left","center","right"].map(g=>({name:GNAME[g],col:GROUPCOL[g],vals:Q.map((_,i)=>groupQ(g,i)),g}))
+    :outs.map(o=>({name:D.outlets[o].name,col:GROUPCOL[D.outlets[o].group],vals:D.rates[term][o],o}));
+  const L=44,R=10,T=10,B=26,W=560,H=300,pw=W-L-R,ph=H-T-B;
+  let ymax=0;lines.forEach(l=>l.vals.forEach(v=>{if(v!==null)ymax=Math.max(ymax,v)}));
+  ymax=ymax||1;const nice=Math.pow(10,Math.floor(Math.log10(ymax))),step=[1,2,5,10].map(m=>m*nice).find(s=>ymax/s<=5)||nice*10,top=Math.ceil(ymax/step)*step;
+  const X=i=>L+pw*i/(Q.length-1),Y=v=>T+ph*(1-v/top);
+  for(let v=0;v<=top+1e-9;v+=step){el("line",{x1:L,x2:W-R,y1:Y(v),y2:Y(v),stroke:"var(--line)"},svg);el("text",{x:L-6,y:Y(v)+4,"text-anchor":"end","font-size":11},svg).textContent=+v.toFixed(2)}
+  Q.forEach((q,i)=>{if(q.endsWith("Q1"))el("text",{x:X(i),y:H-8,"text-anchor":"middle","font-size":11},svg).textContent=q.slice(0,4)});
+  if(sel>=0)el("line",{x1:X(sel),x2:X(sel),y1:T,y2:T+ph,stroke:"var(--fg)","stroke-dasharray":"3 3"},svg);
+  const path=(arr)=>{let d="",pen=false;arr.forEach((v,i)=>{if(v===null){pen=false;return}d+=(pen?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1);pen=true});return d};
+  lines.forEach(l=>{
+    el("path",{d:path(l.vals),fill:"none",stroke:l.col,"stroke-width":isNat?2.6:1.6,opacity:isNat?1:.85},svg);
+    lg.insertAdjacentHTML("beforeend",`<span><i class="sw" style="background:${l.col}"></i>${l.name}</span>`);
+  });
+  if(!isNat){
+    el("path",{d:path(Q.map((_,i)=>provQ(prov,i))),fill:"none",stroke:"var(--fg)","stroke-width":2.6},svg);
+    lg.insertAdjacentHTML("beforeend",`<span><i class="sw" style="background:var(--fg);height:4px"></i>Average</span>`);
+  }
+  const hov=el("rect",{x:L,y:T,width:pw,height:ph,fill:"transparent"},svg);
+  const idx=e=>{const r=svg.getBoundingClientRect(),px=(e.clientX-r.left)*W/r.width;return Math.max(0,Math.min(Q.length-1,Math.round((px-L)/pw*(Q.length-1))))};
+  hov.addEventListener("mousemove",e=>{const i=idx(e);
+    tip(e,`<b>${Q[i]}</b><br>`+lines.map(l=>isNat?`${l.name}: ${fmt(l.vals[i])}${l.vals[i]===null?"":` (${groupN(l.g,i)} outlets)`}`:`${l.name}: ${fmt(l.vals[i])}`).join("<br>"))});
+  hov.addEventListener("mouseleave",()=>$("tip").style.display="none");
+  hov.addEventListener("click",e=>setSel(idx(e)));
+}
+function setSel(i){sel=i;$("qslider").value=i;$("allbtn").classList.remove("on");draw()}
+function draw(){
+  $("qlabel").textContent=sel>=0?Q[sel]:"All";
+  $("allbtn").classList.toggle("on",sel<0);
+  drawMap();drawChart();The National tile averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see its individual outlets.
+}
+D.terms.forEach(t=>{const o=document.createElement("option");o.value=o.textContent=t;$("term").appendChild(o)});
+$("term").addEventListener("change",e=>{term=e.target.value;draw()});
+$("qslider").max=Q.length-1;
+$("qslider").addEventListener("input",e=>setSel(+e.target.value));
+$("allbtn").addEventListener("click",()=>{sel=-1;draw()});
+prov=outletsIn("AB").length?"AB":(Object.values(D.outlets)[0]||{}).province||null;
+draw();
+</script>
+</body>
+</html>
