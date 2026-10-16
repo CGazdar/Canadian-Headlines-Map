@@ -157,7 +157,7 @@ function drawMap(){
   codes.forEach(p=>{
     if(NOLABEL[p])return;
     const v=vals[p],c=MAP.centres[p];
-    const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);t.textContent=p==="TER"?"North":p;
+    const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);t.textContent=p==="TER"?"Northern Territories":p;
     t.style.fill=info[p].dark?"#fff":"var(--fg)";
   });
   const nv=provVal("NAT");
