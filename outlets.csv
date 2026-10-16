@@ -1,0 +1,28 @@
+outlet_id,name,domain,home_province,scope,language,leaning,leaning_checked_on,rss_url,notes,owner
+cbc,CBC News,cbc.ca,national,national,en,lean_left,2026-10-15,https://www.cbc.ca/webfeed/rss/rss-topstories,Verify feed URL,CBC
+ctv,CTV News,ctvnews.ca,national,national,en,center,2026-10-15,,,Bell Media
+global,Global News,globalnews.ca,national,national,en,lean_left,2026-10-15,,,Corus
+globe,The Globe and Mail,theglobeandmail.com,national,national,en,center,2026-10-15,,Paywalled; headlines still in feeds,Woodbridge
+natpost,National Post,nationalpost.com,national,national,en,lean_right,2026-10-15,,Toronto-based,Postmedia
+macleans,Maclean's,macleans.ca,national,national,en,lean_left,2026-10-15,,Magazine; low volume,St. Joseph Communications
+star,Toronto Star,thestar.com,ON,provincial,en,lean_left,2026-10-15,,,Torstar
+torontosun,Toronto Sun,torontosun.com,ON,provincial,en,right,2026-10-15,,,Postmedia
+ottawacitizen,Ottawa Citizen,ottawacitizen.com,ON,local,en,lean_right,2026-10-15,,,Postmedia
+ottawasun,Ottawa Sun,ottawasun.com,ON,local,en,lean_right,2026-10-15,,,Postmedia
+vansun,Vancouver Sun,vancouversun.com,BC,local,en,lean_right,2026-10-15,,,Postmedia
+province,The Province,theprovince.com,BC,local,en,lean_right,2026-10-15,,,Postmedia
+tyee,The Tyee,thetyee.ca,BC,provincial,en,lean_left,2026-10-15,,,The Tyee
+calgaryherald,Calgary Herald,calgaryherald.com,AB,local,en,lean_right,2026-10-15,,,Postmedia
+edmontonjournal,Edmonton Journal,edmontonjournal.com,AB,local,en,lean_right,2026-10-15,,,Postmedia
+calgarysun,Calgary Sun,calgarysun.com,AB,local,en,right,2026-10-15,,,Postmedia
+edmontonsun,Edmonton Sun,edmontonsun.com,AB,local,en,lean_right,2026-10-15,,,Postmedia
+leaderpost,Regina Leader-Post,leaderpost.com,SK,local,en,lean_right,2026-10-15,,,Postmedia
+starphoenix,Saskatoon StarPhoenix,thestarphoenix.com,SK,local,en,lean_right,2026-10-15,,,Postmedia
+wfp,Winnipeg Free Press,winnipegfreepress.com,MB,local,en,center,2026-10-15,,,FP Canadian Newspapers
+winnipegsun,Winnipeg Sun,winnipegsun.com,MB,local,en,lean_right,2026-10-15,,,Postmedia
+gazette,Montreal Gazette,montrealgazette.com,QC,local,en,lean_right,2026-10-15,,,Postmedia
+lapresse,La Presse,lapresse.ca,QC,provincial,fr,,,,French: needs separate tokenizer and stopwords,La Presse
+ledevoir,Le Devoir,ledevoir.com,QC,provincial,fr,center,2026-10-15,,French: needs separate tokenizer and stopwords,Le Devoir
+jdm,Journal de Montréal,journaldemontreal.com,QC,provincial,fr,right,2026-10-15,,French: needs separate tokenizer and stopwords,Quebecor
+chronicleherald,Chronicle Herald,thechronicleherald.ca,NS,provincial,en,,,,,Halifax Herald
+saltwire,SaltWire Network,saltwire.com,NS,provincial,en,,,,Successor to chronicleherald.ca; Atlantic-wide brands,SaltWire

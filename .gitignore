@@ -1,0 +1,13 @@
+headlines.db
+*.db
+*.bak
+*.pyc
+__pycache__/
+.DS_Store
+.venv/
+clean_output.txt
+distinctive_terms.csv
+term_trends.csv
+coverage_by_quarter.csv
+watch_*.csv
+watch_trends.png
