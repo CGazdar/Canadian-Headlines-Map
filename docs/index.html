@@ -6,9 +6,9 @@
 <title>Canadian Headline Terms</title>
 <style>
 :root{--bg:#fafaf8;--fg:#1d1d1b;--mute:#6b6b66;--card:#fff;--line:#dcdcd6;--nodata:#ecebe6;
---left:#2a6fb0;--center:#7a7a7a;--right:#c0392b;--ramp0:#eaf2f8;--ramp1:#1b4f7a;}
+--left:#c0392b;--center:#7a7a7a;--right:#2a6fb0;--ramp0:#eaf2f8;--ramp1:#1b4f7a;}
 @media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ececea;--mute:#9a9a94;--card:#1f1f1d;--line:#3a3a36;
---nodata:#262624;--left:#5aa0e0;--center:#a0a0a0;--right:#e5685a;--ramp0:#1f2b36;--ramp1:#7cc0f0;}}
+--nodata:#262624;--left:#e5685a;--center:#a0a0a0;--right:#5aa0e0;--ramp0:#1f2b36;--ramp1:#7cc0f0;}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
 main{max-width:980px;margin:0 auto;padding:24px 16px 48px}
@@ -34,6 +34,8 @@ svg text{fill:var(--fg);font-family:inherit}
 #natbtn.on{border-color:var(--fg);font-weight:600}
 .ramp{height:8px;border-radius:4px;background:linear-gradient(to right,var(--ramp0),var(--ramp1));border:1px solid var(--line)}
 .rampl{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:3px}
+.seg{display:inline-flex}.seg button{border-radius:0;margin-left:-1px}.seg button:first-child{border-radius:6px 0 0 6px;margin:0}.seg button:last-child{border-radius:0 6px 6px 0}
+.leg2{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mute)}.leg2 i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
 .sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
 .note{color:var(--mute);font-size:13px;margin-top:14px;max-width:80ch}
@@ -49,12 +51,13 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
   <label>Term <select id="term"></select></label>
   <div class="slider"><input id="qslider" type="range" min="0" value="0"><span class="q" id="qlabel"></span></div>
   <button id="allbtn" class="on">All quarters</button>
+  <span class="seg" title="How the map is coloured"><button id="m-lean" class="on">Colour: leaning</button><button id="m-rate">Colour: rate</button></span>
 </div>
 <div class="grid">
   <div class="card"><div class="cardhead"><h2 id="maptitle">Map</h2><button id="natbtn">All of Canada</button></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
   <div class="card"><h2 id="charttitle">Select a province</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
 </div>
-<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Line colour is the outlet's Ground News leaning (blue = left/lean left, grey = center, red = lean right/right). Postmedia owns most red outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see its individual outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
+<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Colour shows the outlet's Ground News leaning (red = left/lean left, grey = center, blue = lean right/right). In “Leaning” mode a province takes the colour of the side whose outlets use the term most there; the deeper the colour, the bigger the lead. Hatched provinces have outlets from only one side in the dataset, so there is nothing to compare. Postmedia owns most blue outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see its individual outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
 </main>
 <div id="tip"></div>
 <script src="data.js"></script>
@@ -64,7 +67,7 @@ const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
 const MAP = window.MAP, NOLABEL = {NB:1,NS:1,PE:1};
 const NAMES = {YT:"Yukon",NT:"N.W.T.",NU:"Nunavut",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:"All outlets (national)"};
 const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
-let term = D.terms[0], sel = -1, prov = null;
+let term = D.terms[0], sel = -1, prov = null, mode = "lean";
 
 const $ = id => document.getElementById(id);
 function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
@@ -77,6 +80,15 @@ function groupOutlets(g){return Object.keys(D.outlets).filter(o=>D.outlets[o].gr
 function groupQ(g,i){return mean(groupOutlets(g).map(o=>D.rates[term][o][i]))}
 function groupN(g,i){return groupOutlets(g).filter(o=>D.rates[term][o][i]!==null).length}
 const GNAME={left:"Left",center:"Center",right:"Right"};
+function outletVal(o){const r=D.rates[term][o];return sel>=0?r[sel]:mean(r)}
+function provGroups(p){ // group -> mean rate among this province's outlets, in the chosen period
+  const out={};
+  ["left","center","right"].forEach(g=>{const vs=members(p).filter(o=>D.outlets[o].group===g).map(outletVal).filter(v=>v!==null);
+    if(vs.length)out[g]=mean(vs)});
+  return out}
+function mixc(varName,t){const cs=getComputedStyle(document.documentElement);
+  const a=hex(cs.getPropertyValue("--nodata").trim()),b=hex(cs.getPropertyValue(varName).trim());
+  return "rgb("+a.map((x,i)=>Math.round(x+(b[i]-x)*t)).join(",")+")"}
 function provVal(p){
   if(sel>=0)return provQ(p,sel);
   return mean(Q.map((_,i)=>provQ(p,i)));
@@ -96,25 +108,55 @@ function drawMap(){
   // fixed colour scale across time for this term so the slider is comparable
   let top=0;codes.concat("NAT").forEach(p=>{for(let i=0;i<Q.length;i++){const v=provQ(p,i);if(v!==null)top=Math.max(top,v)}});
   top=top||1;
+  const defs=el("defs",{},svg);
+  const pat=el("pattern",{id:"hatch",width:6,height:6,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"},defs);
+  el("rect",{width:6,height:6},pat).style.fill="var(--nodata)";
+  const hl=el("line",{x1:0,y1:0,x2:0,y2:6,"stroke-width":2},pat);hl.style.stroke="var(--line)";
+  const info={};
+  codes.forEach(p=>{
+    const v=vals[p],n=members(p).length,has=v!==null;
+    let fill="var(--nodata)",dark=false,tipTxt;
+    const gs=provGroups(p),gk=Object.keys(gs);
+    const rates=gk.map(g=>`${GNAME[g]}: ${fmt(gs[g])}`).join("<br>");
+    if(mode==="rate"){
+      if(has){const t=Math.min(1,v/top);fill=colour(t);dark=t>0.55}
+      tipTxt=has?`${fmt(v)} per 1,000<br>${n} outlet${n===1?"":"s"} in dataset`:`no data in this period<br>${n} outlet${n===1?"":"s"} in dataset`;
+    }else{
+      if(!gk.length)tipTxt=`no data in this period<br>${n} outlet${n===1?"":"s"} in dataset`;
+      else if(Math.max(...gk.map(g=>gs[g]))<=0)tipTxt="term not used in this period";
+      else if(gk.length===1){fill="url(#hatch)";tipTxt=`${rates}<br>Only ${GNAME[gk[0]].toLowerCase()} outlets here, nothing to compare`}
+      else{
+        const sorted=gk.slice().sort((x,y)=>gs[y]-gs[x]),lead=(gs[sorted[0]]-gs[sorted[1]])/gs[sorted[0]];
+        const t=0.3+0.7*lead;fill=mixc("--"+sorted[0],t);dark=t>0.6;
+        tipTxt=`${rates}<br><b>${GNAME[sorted[0]]} uses it most</b>`;
+      }
+    }
+    info[p]={fill,dark,tipTxt,clickable:has||n};
+  });
   const order=codes.slice().sort((a,b)=>(a===prov)-(b===prov));   // selected drawn last, so its outline shows
   order.forEach(p=>{
-    const v=vals[p],has=v!==null,n=members(p).length;
-    const path=el("path",{d:MAP.paths[p],class:"prov"+(has?"":" nodata")+(p===prov?" sel":""),
-      fill:has?colour(Math.min(1,v/top)):"var(--nodata)"},svg);
-    path.addEventListener("mousemove",e=>tip(e,`<b>${NAMES[p]}</b><br>${has?fmt(v)+" per 1,000":"no data in this period"}<br>${n} outlet${n===1?"":"s"} in dataset`));
+    const f=info[p];
+    const path=el("path",{d:MAP.paths[p],class:"prov"+(f.clickable?"":" nodata")+(p===prov?" sel":"")},svg);
+    path.style.fill=f.fill;
+    path.addEventListener("mousemove",e=>tip(e,`<b>${NAMES[p]}</b><br>${f.tipTxt}`));
     path.addEventListener("mouseleave",()=>$("tip").style.display="none");
-    if(has||n)path.addEventListener("click",()=>{prov=p;draw()});
+    if(f.clickable)path.addEventListener("click",()=>{prov=p;draw()});
   });
   codes.forEach(p=>{
     if(NOLABEL[p])return;
     const v=vals[p],c=MAP.centres[p];
     const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);t.textContent=p;
-    t.style.fill=(v!==null&&v/top>0.55)?"#fff":"var(--fg)";
+    t.style.fill=info[p].dark?"#fff":"var(--fg)";
   });
   const nv=provVal("NAT");
-  $("natbtn").textContent="All of Canada"+(nv===null?"":" · "+fmt(nv));
+  let ntxt="All of Canada";
+  if(mode==="rate"){if(nv!==null)ntxt+=" · "+fmt(nv)}
+  else{const ng=provGroups("NAT"),k=Object.keys(ng).sort((x,y)=>ng[y]-ng[x]);if(k.length>1&&ng[k[0]]>0)ntxt+=" · "+GNAME[k[0]]+" leads"}
+  $("natbtn").textContent=ntxt;
   $("natbtn").classList.toggle("on",prov==="NAT");
-  $("scale").innerHTML=`<div class="ramp"></div><div class="rampl"><span>0</span><span>${top.toFixed(top<10?2:1)} per 1,000 headlines</span></div>`;
+  $("scale").innerHTML=mode==="rate"
+    ?`<div class="ramp"></div><div class="rampl"><span>0</span><span>${top.toFixed(top<10?2:1)} per 1,000 headlines</span></div>`
+    :`<div class="leg2"><span><i style="background:var(--left)"></i>Left uses it most</span><span><i style="background:var(--center)"></i>Center</span><span><i style="background:var(--right)"></i>Right</span><span><i style="background:repeating-linear-gradient(45deg,var(--nodata) 0 3px,var(--line) 3px 5px)"></i>One side only</span><span><i style="background:var(--nodata)"></i>No data</span></div>`;
   $("maptitle").textContent=`“${term}” — ${sel>=0?Q[sel]:"all quarters"}`;
 }
 function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
@@ -163,6 +205,7 @@ $("qslider").max=Q.length-1;
 $("qslider").addEventListener("input",e=>setSel(+e.target.value));
 $("allbtn").addEventListener("click",()=>{sel=-1;draw()});
 $("natbtn").addEventListener("click",()=>{prov="NAT";draw()});
+[["lean","m-lean"],["rate","m-rate"]].forEach(([m,id])=>$(id).addEventListener("click",()=>{mode=m;$("m-lean").classList.toggle("on",m==="lean");$("m-rate").classList.toggle("on",m==="rate");draw()}));
 prov=outletsIn("AB").length?"AB":(Object.values(D.outlets)[0]||{}).province||null;
 draw();
 </script>
