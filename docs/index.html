@@ -69,7 +69,7 @@ const MAP = window.MAP, NOLABEL = {NB:1,NS:1,PE:1};
 const REG = {YT:"TER",NT:"TER",NU:"TER"};   // the three territories are shown as one region
 (function(){const P=MAP.paths,C=MAP.centres,parts=["YT","NT","NU"].filter(c=>P[c]);
   if(parts.length){P.TER=parts.map(c=>P[c]).join("");C.TER=[0,1].map(k=>parts.reduce((s,c)=>s+C[c][k],0)/parts.length);parts.forEach(c=>{delete P[c];delete C[c]})}})();
-const NAMES = {TER:"Northern Territories",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:"National Coverage"};
+const NAMES = {TER:"Northern Territories",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:" National Coverage"};
 const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
 let term = "", sel = -1, prov = "NAT", mode = "lean";
 
@@ -178,7 +178,7 @@ function drawChart(){
   if(!term){$("charttitle").textContent="Visualizations";
     const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Pick a term above to see how it is used over time.";t.style.fill="var(--mute)";return}
   if(!prov){$("charttitle").textContent="Select a province";return}
-  $("charttitle").textContent=`Usage of term “${cap(term)}” per 1,000 headlines` in ${NAMES[prov]}
+  $("charttitle").textContent=`${NAMES[prov]}: “${cap(term)}” per 1,000 headlines`;
   if(!members(prov).length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No outlets from this province in the dataset.";return}
   const lines=["left","center","right"].map(g=>{
     const os=members(prov).filter(o=>D.outlets[o].group===g);
