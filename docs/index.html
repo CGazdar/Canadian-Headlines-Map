@@ -20,13 +20,20 @@ button.on{border-color:var(--fg)}
 .slider{flex:1;min-width:220px;display:flex;align-items:center;gap:10px}
 .slider input{flex:1}
 .q{font-variant-numeric:tabular-nums;min-width:6.5em}
-.grid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:20px}
+.grid{display:grid;grid-template-columns:minmax(320px,1.25fr) 1fr;gap:20px}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
 .card h2{font-size:14px;margin:0 0 8px;color:var(--mute);font-weight:600}
 svg text{fill:var(--fg);font-family:inherit}
-.tile{cursor:pointer}.tile.nodata{cursor:default}
-.tile rect{stroke:var(--line);stroke-width:1}.tile.sel rect{stroke:var(--fg);stroke-width:2.5}
+.prov{stroke:var(--card);stroke-width:.8;stroke-linejoin:round;cursor:pointer}
+.prov.nodata{cursor:default}.prov.sel{stroke:var(--fg);stroke-width:2.2}
+.plabel{font-size:11px;font-weight:600;text-anchor:middle;pointer-events:none}
+.cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.cardhead h2{margin:0}
+#natbtn{font-size:13px;padding:4px 10px;border-radius:999px}
+#natbtn.on{border-color:var(--fg);font-weight:600}
+.ramp{height:8px;border-radius:4px;background:linear-gradient(to right,var(--ramp0),var(--ramp1));border:1px solid var(--line)}
+.rampl{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:3px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
 .sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
 .note{color:var(--mute);font-size:13px;margin-top:14px;max-width:80ch}
@@ -37,26 +44,26 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <body>
 <main>
 <h1>Canadian headline terms, 2019 to now</h1>
-<p class="sub">How often a term appears in headlines, per 1,000, by province of the outlet. Click a tile for that province's outlets over time. Grey tiles have no usable data for the chosen period.</p>
+<p class="sub">How often a term appears in headlines, per 1,000, by province of the outlet. Click a province for its outlets over time, or “All of Canada” for the three leaning groups. Grey provinces have no usable data for the chosen period.</p>
 <div class="controls">
   <label>Term <select id="term"></select></label>
   <div class="slider"><input id="qslider" type="range" min="0" value="0"><span class="q" id="qlabel"></span></div>
   <button id="allbtn" class="on">All quarters</button>
 </div>
 <div class="grid">
-  <div class="card"><h2 id="maptitle">Map</h2><svg id="map" width="100%" viewBox="0 0 410 220"></svg><div id="scale" class="note" style="margin-top:6px"></div></div>
+  <div class="card"><div class="cardhead"><h2 id="maptitle">Map</h2><button id="natbtn">All of Canada</button></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
   <div class="card"><h2 id="charttitle">Select a province</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
 </div>
-<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Line colour is the outlet's Ground News leaning (blue = left/lean left, grey = center, red = lean right/right). Postmedia owns most red outlets and shares content between them. . Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
+<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Line colour is the outlet's Ground News leaning (blue = left/lean left, grey = center, red = lean right/right). Postmedia owns most red outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see its individual outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
 </main>
 <div id="tip"></div>
 <script src="data.js"></script>
+<script src="map.js"></script>
 <script>
 const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
-const TILES = {YT:[0,0],NT:[1,0],NU:[2,0],BC:[0,1],AB:[1,1],SK:[2,1],MB:[3,1],ON:[4,1],QC:[5,1],NB:[6,1],NL:[7,1],PE:[6,2],NS:[7,2],NAT:[0,3]};
+const MAP = window.MAP, NOLABEL = {NB:1,NS:1,PE:1};
 const NAMES = {YT:"Yukon",NT:"N.W.T.",NU:"Nunavut",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:"All outlets (national)"};
 const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
-const S = 46, GAP = 4, X0 = 6, Y0 = 6;
 let term = D.terms[0], sel = -1, prov = null;
 
 const $ = id => document.getElementById(id);
@@ -83,27 +90,31 @@ function hex(h){h=h.replace("#","");return [0,2,4].map(i=>parseInt(h.substr(i,2)
 
 function drawMap(){
   const svg=$("map");svg.innerHTML="";
-  const vals={};let max=0;
-  for(const p in TILES){vals[p]=provVal(p);if(vals[p]!==null)max=Math.max(max,vals[p])}
+  svg.setAttribute("viewBox",`0 0 ${MAP.w} ${MAP.h}`);
+  const codes=Object.keys(MAP.paths),vals={};
+  codes.forEach(p=>vals[p]=provVal(p));
   // fixed colour scale across time for this term so the slider is comparable
-  let top=0;for(const p in TILES){for(let i=0;i<Q.length;i++){const v=provQ(p,i);if(v!==null)top=Math.max(top,v)}}
+  let top=0;codes.concat("NAT").forEach(p=>{for(let i=0;i<Q.length;i++){const v=provQ(p,i);if(v!==null)top=Math.max(top,v)}});
   top=top||1;
-  for(const p in TILES){
-    const [c,r]=TILES[p],x=X0+c*(S+GAP),y=Y0+r*(S+GAP),v=vals[p];
-    const has=v!==null,g=el("g",{class:"tile"+(has?"":" nodata")+(p===prov?" sel":"")},svg);
-    const w=p==="NAT"?S*2+GAP:S;
-    const rc=el("rect",{x,y,width:w,height:S,rx:6,fill:has?colour(Math.min(1,v/top)):"var(--nodata)"},g);
-    const dark=has&&v/top>0.55;
-    el("text",{x:x+w/2,y:y+19,"text-anchor":"middle","font-size":12,"font-weight":600,fill:dark?"#fff":"var(--fg)"},g).textContent=p==="NAT"?"National":p;
-    g.lastChild.style.fill=dark?"#fff":"";
-    const t2=el("text",{x:x+w/2,y:y+35,"text-anchor":"middle","font-size":11},g);t2.textContent=has?fmt(v):"–";
-    t2.style.fill=dark?"#fff":"";
-    const n=members(p).length;
-    g.addEventListener("mousemove",e=>tip(e,`<b>${NAMES[p]}</b><br>${has?fmt(v)+" per 1,000":"no data in this period"}<br>${n} outlet${n===1?"":"s"} in dataset`));
-    g.addEventListener("mouseleave",()=>$("tip").style.display="none");
-    if(has||n)g.addEventListener("click",()=>{prov=p;draw()});
-  }
-  $("scale").textContent=`Darkest = ${top.toFixed(top<10?2:1)} per 1,000 headlines (the highest any province reaches for this term in any quarter).`;
+  const order=codes.slice().sort((a,b)=>(a===prov)-(b===prov));   // selected drawn last, so its outline shows
+  order.forEach(p=>{
+    const v=vals[p],has=v!==null,n=members(p).length;
+    const path=el("path",{d:MAP.paths[p],class:"prov"+(has?"":" nodata")+(p===prov?" sel":""),
+      fill:has?colour(Math.min(1,v/top)):"var(--nodata)"},svg);
+    path.addEventListener("mousemove",e=>tip(e,`<b>${NAMES[p]}</b><br>${has?fmt(v)+" per 1,000":"no data in this period"}<br>${n} outlet${n===1?"":"s"} in dataset`));
+    path.addEventListener("mouseleave",()=>$("tip").style.display="none");
+    if(has||n)path.addEventListener("click",()=>{prov=p;draw()});
+  });
+  codes.forEach(p=>{
+    if(NOLABEL[p])return;
+    const v=vals[p],c=MAP.centres[p];
+    const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);t.textContent=p;
+    t.style.fill=(v!==null&&v/top>0.55)?"#fff":"var(--fg)";
+  });
+  const nv=provVal("NAT");
+  $("natbtn").textContent="All of Canada"+(nv===null?"":" · "+fmt(nv));
+  $("natbtn").classList.toggle("on",prov==="NAT");
+  $("scale").innerHTML=`<div class="ramp"></div><div class="rampl"><span>0</span><span>${top.toFixed(top<10?2:1)} per 1,000 headlines</span></div>`;
   $("maptitle").textContent=`“${term}” — ${sel>=0?Q[sel]:"all quarters"}`;
 }
 function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
@@ -144,13 +155,14 @@ function setSel(i){sel=i;$("qslider").value=i;$("allbtn").classList.remove("on")
 function draw(){
   $("qlabel").textContent=sel>=0?Q[sel]:"All";
   $("allbtn").classList.toggle("on",sel<0);
-  drawMap();drawChart();The National tile averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see its individual outlets.
+  drawMap();drawChart();
 }
 D.terms.forEach(t=>{const o=document.createElement("option");o.value=o.textContent=t;$("term").appendChild(o)});
 $("term").addEventListener("change",e=>{term=e.target.value;draw()});
 $("qslider").max=Q.length-1;
 $("qslider").addEventListener("input",e=>setSel(+e.target.value));
 $("allbtn").addEventListener("click",()=>{sel=-1;draw()});
+$("natbtn").addEventListener("click",()=>{prov="NAT";draw()});
 prov=outletsIn("AB").length?"AB":(Object.values(D.outlets)[0]||{}).province||null;
 draw();
 </script>
