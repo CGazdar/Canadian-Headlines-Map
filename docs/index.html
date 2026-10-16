@@ -46,7 +46,7 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <body>
 <main>
 <h1>Canadian headline terms, 2019 to now</h1>
-<p class="sub">How often a term appears in headlines, per 1,000, by province of the outlet. Click a province for its outlets over time, or “All of Canada” for the three leaning groups. Grey provinces have no usable data for the chosen period.</p>
+<p class="sub">How often a term appears in headlines, per 1,000, by province of the outlet. Click a province, or “All of Canada”, to see the three leaning groups over time. Grey provinces have no usable data for the chosen period.</p>
 <div class="controls">
   <label>Term <select id="term"></select></label>
   <div class="slider"><input id="qslider" type="range" min="0" value="0"><span class="q" id="qlabel"></span></div>
@@ -57,7 +57,7 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
   <div class="card"><div class="cardhead"><h2 id="maptitle">Map</h2><button id="natbtn">All of Canada</button></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
   <div class="card"><h2 id="charttitle">Select a province</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
 </div>
-<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Colour shows the outlet's Ground News leaning (red = left/lean left, grey = center, blue = lean right/right). In “Leaning” mode a province takes the colour of the side whose outlets use the term most there; the deeper the colour, the bigger the lead. A province with outlets from only one side in the dataset takes that side's full colour, even though there is nothing to compare it with. Postmedia owns most blue outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see its individual outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
+<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Colour shows the outlet's Ground News leaning (red = left/lean left, grey = center, blue = lean right/right). In “Leaning” mode a province takes the colour of the side whose outlets use the term most there; the deeper the colour, the bigger the lead. A province with outlets from only one side in the dataset takes that side's full colour, even though there is nothing to compare it with. Postmedia owns most blue outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see the same three groups for its outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
 </main>
 <div id="tip"></div>
 <script src="data.js"></script>
@@ -76,9 +76,6 @@ function mean(a){a=a.filter(v=>v!==null&&v!==undefined);return a.length?a.reduce
 // province value at quarter index i (mean over its outlets with data), or null
 function members(p){return p==="NAT"?Object.keys(D.outlets):outletsIn(p)}
 function provQ(p,i){return mean(members(p).map(o=>D.rates[term][o][i]))}
-function groupOutlets(g){return Object.keys(D.outlets).filter(o=>D.outlets[o].group===g)}
-function groupQ(g,i){return mean(groupOutlets(g).map(o=>D.rates[term][o][i]))}
-function groupN(g,i){return groupOutlets(g).filter(o=>D.rates[term][o][i]!==null).length}
 const ACR={dei:"DEI",ndp:"NDP",uk:"UK",usa:"USA",bc:"BC",pm:"PM",mp:"MP",mps:"MPs",rcmp:"RCMP",covid:"COVID","covid-19":"COVID-19",ucp:"UCP",cbc:"CBC"};
 function cap(t){return t.split(" ").map(w=>ACR[w]||w.split("-").map(x=>ACR[x]||x.charAt(0).toUpperCase()+x.slice(1)).join("-")).join(" ")}
 const GNAME={left:"Left",center:"Center",right:"Right"};
@@ -174,14 +171,15 @@ function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t
 function drawChart(){
   const svg=$("chart"),lg=$("legend");svg.innerHTML="";lg.innerHTML="";
   if(!term){$("charttitle").textContent="Choose a term";
-    const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Pick a term above to see how it is used over time.";t.style.fill="var(--mute)";return}
+    const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Please First Select a Term";t.style.fill="var(--mute)";return}
   if(!prov){$("charttitle").textContent="Select a province";return}
-  const isNat=prov==="NAT",outs=isNat?[]:outletsIn(prov);
   $("charttitle").textContent=`${NAMES[prov]}: “${cap(term)}” per 1,000 headlines`;
-  if(!isNat&&!outs.length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No outlets from this province in the dataset.";return}
-  const lines=isNat
-    ?["left","center","right"].map(g=>({name:GNAME[g],col:GROUPCOL[g],vals:Q.map((_,i)=>groupQ(g,i)),g}))
-    :outs.map(o=>({name:D.outlets[o].name,col:GROUPCOL[D.outlets[o].group],vals:D.rates[term][o],o}));
+  if(!members(prov).length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No outlets from this province in the dataset.";return}
+  const lines=["left","center","right"].map(g=>{
+    const os=members(prov).filter(o=>D.outlets[o].group===g);
+    return {name:GNAME[g],col:GROUPCOL[g],g,os,vals:Q.map((_,i)=>mean(os.map(o=>D.rates[term][o][i])))}
+  }).filter(l=>l.vals.some(v=>v!==null));
+  if(!lines.length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No data for this term here.";return}
   const L=44,R=10,T=10,B=26,W=560,H=300,pw=W-L-R,ph=H-T-B;
   let ymax=0;lines.forEach(l=>l.vals.forEach(v=>{if(v!==null)ymax=Math.max(ymax,v)}));
   ymax=ymax||1;const nice=Math.pow(10,Math.floor(Math.log10(ymax))),step=[1,2,5,10].map(m=>m*nice).find(s=>ymax/s<=5)||nice*10,top=Math.ceil(ymax/step)*step;
@@ -191,17 +189,13 @@ function drawChart(){
   if(sel>=0)el("line",{x1:X(sel),x2:X(sel),y1:T,y2:T+ph,stroke:"var(--fg)","stroke-dasharray":"3 3"},svg);
   const path=(arr)=>{let d="",pen=false;arr.forEach((v,i)=>{if(v===null){pen=false;return}d+=(pen?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1);pen=true});return d};
   lines.forEach(l=>{
-    el("path",{d:path(l.vals),fill:"none",stroke:l.col,"stroke-width":isNat?2.6:1.6,opacity:isNat?1:.85},svg);
+    el("path",{d:path(l.vals),fill:"none",stroke:l.col,"stroke-width":2.6},svg);
     lg.insertAdjacentHTML("beforeend",`<span><i class="sw" style="background:${l.col}"></i>${l.name}</span>`);
   });
-  if(!isNat){
-    el("path",{d:path(Q.map((_,i)=>provQ(prov,i))),fill:"none",stroke:"var(--fg)","stroke-width":2.6},svg);
-    lg.insertAdjacentHTML("beforeend",`<span><i class="sw" style="background:var(--fg);height:4px"></i>Average</span>`);
-  }
   const hov=el("rect",{x:L,y:T,width:pw,height:ph,fill:"transparent"},svg);
   const idx=e=>{const r=svg.getBoundingClientRect(),px=(e.clientX-r.left)*W/r.width;return Math.max(0,Math.min(Q.length-1,Math.round((px-L)/pw*(Q.length-1))))};
   hov.addEventListener("mousemove",e=>{const i=idx(e);
-    tip(e,`<b>${Q[i]}</b><br>`+lines.map(l=>isNat?`${l.name}: ${fmt(l.vals[i])}${l.vals[i]===null?"":` (${groupN(l.g,i)} outlets)`}`:`${l.name}: ${fmt(l.vals[i])}`).join("<br>"))});
+    tip(e,`<b>${Q[i]}</b><br>`+lines.map(l=>`${l.name}: ${fmt(l.vals[i])}${l.vals[i]===null?"":` (${l.os.filter(o=>D.rates[term][o][i]!==null).length} outlet${l.os.filter(o=>D.rates[term][o][i]!==null).length===1?"":"s"})`}`).join("<br>"))});
   hov.addEventListener("mouseleave",()=>$("tip").style.display="none");
   hov.addEventListener("click",e=>setSel(idx(e)));
 }
