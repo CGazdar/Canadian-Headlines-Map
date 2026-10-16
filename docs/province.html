@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Press by Province</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1d1d1b;--mute:#6b6b66;--card:#fff;--line:#dcdcd6;--nodata:#ecebe6;
+--left:#c0392b;--center:#7a7a7a;--right:#2a6fb0;}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ececea;--mute:#9a9a94;--card:#1f1f1d;--line:#3a3a36;
+--nodata:#262624;--left:#e5685a;--center:#a0a0a0;--right:#5aa0e0;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 48px}
+a{color:var(--fg)}
+.back{display:inline-block;margin-bottom:10px;font-size:14px;color:var(--mute);text-decoration:none}
+.back:hover{color:var(--fg)}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 14px;max-width:70ch}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.pills a{font-size:13px;padding:4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--card);text-decoration:none}
+.pills a.cur{border-color:var(--fg);font-weight:600}
+.pills a.dim{color:var(--mute);background:var(--nodata)}
+.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px}
+select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{font-size:14px;margin:0 0 8px;color:var(--mute);font-weight:600}
+svg text{fill:var(--fg);font-family:inherit}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
+.sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mute);font-weight:600;padding:0 6px 6px 0}
+td{padding:7px 6px 7px 0;border-top:1px solid var(--line);vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;padding-right:0}
+.small{display:block;color:var(--mute);font-size:12px}
+.empty{color:var(--mute);margin:0;max-width:60ch}
+.note{color:var(--mute);font-size:13px;margin-top:14px;max-width:80ch}
+#tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:6px;
+padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:5}
+</style>
+</head>
+<body>
+<main>
+<a class="back" id="back" href="index.html">← All of Canada</a>
+<h1 id="ptitle">Local press</h1>
+<p class="sub" id="psub"></p>
+<div class="pills" id="pnav"></div>
+<div class="controls"><label>Term <select id="term"></select></label></div>
+<div class="grid">
+  <div class="card"><h2 id="charttitle">Choose a term</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
+  <div class="card"><h2>Local outlets</h2><div id="table"></div></div>
+</div>
+<p class="note">Each line is one outlet's rate per 1,000 headlines (colour = Ground News leaning: red = left/lean left, grey = center, blue = lean right/right). The dashed line is the average of every outlet in the country, for comparison. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps in a line are missing data, not zero use. Postmedia papers share content, so several of them can move together.</p>
+</main>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script>
+const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
+const REG = {YT:"TER",NT:"TER",NU:"TER"};   // the three territories are one region
+const NAMES = {BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",TER:"Northern Territories"};
+const ORDER = ["BC","AB","SK","MB","ON","QC","NB","NS","PE","NL","TER"];
+const LEANS = {left:"Left",lean_left:"Lean Left",center:"Center",lean_right:"Lean Right",right:"Right"};
+const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
+const params = new URLSearchParams(location.search);
+let prov = ORDER.includes(params.get("p")) ? params.get("p") : "AB";
+let term = D.terms.includes(params.get("term")) ? params.get("term") : "";
+
+const $ = id => document.getElementById(id);
+function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+function mean(a){a=a.filter(v=>v!==null&&v!==undefined);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
+function outletsIn(p){return Object.keys(D.outlets).filter(o=>(REG[D.outlets[o].province]||D.outlets[o].province)===p)}
+const ACR={dei:"DEI",ndp:"NDP",uk:"UK",usa:"USA",bc:"BC",pm:"PM",mp:"MP",mps:"MPs",rcmp:"RCMP",covid:"COVID","covid-19":"COVID-19",ucp:"UCP",cbc:"CBC"};
+function cap(t){return t.split(" ").map(w=>ACR[w]||w.split("-").map(x=>ACR[x]||x.charAt(0).toUpperCase()+x.slice(1)).join("-")).join(" ")}
+function fmt(v){return v===null?"no data":v.toFixed(v<10?2:1)}
+function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
+function qs(p){return "?p="+p+(term?"&term="+encodeURIComponent(term):"")}
+
+function drawHeader(){
+  const outs=outletsIn(prov);
+  document.title=NAMES[prov]+" · Local Press";
+  $("ptitle").textContent=NAMES[prov]+": local press";
+  $("back").href="index.html";
+  $("psub").textContent=outs.length
+    ?`${outs.length} local outlet${outs.length===1?"":"s"} in the dataset. Pick a term to compare them with each other and with the country as a whole.`
+    :"";
+  $("pnav").innerHTML=ORDER.map(p=>`<a href="province.html${qs(p)}" class="${p===prov?"cur":""}${outletsIn(p).length?"":" dim"}">${NAMES[p]}</a>`).join("");
+}
+function drawTable(){
+  const outs=outletsIn(prov),box=$("table");
+  if(!outs.length){
+    box.innerHTML=`<p class="empty">No local outlets from ${NAMES[prov]} are in the dataset yet.${prov==="TER"?" The territories are mostly covered by national outlets, such as CBC North, which appear in the Canada-wide view. Territorial headlines may be added later.":""}</p>`;
+    return;
+  }
+  const any=D.rates[D.terms[0]];
+  box.innerHTML="<table><tr><th>Outlet</th><th>Leaning</th><th class=num>"+(term?"Avg per 1,000":"")+"</th></tr>"+outs.map(o=>{
+    const m=D.outlets[o],r=any[o],idx=r.map((v,i)=>v===null?-1:i).filter(i=>i>=0);
+    const cov=idx.length?`${Q[idx[0]]} to ${Q[idx[idx.length-1]]} · ${idx.length} quarter${idx.length===1?"":"s"}`:"no usable quarters";
+    const avg=term?fmt(mean(D.rates[term][o])):"";
+    return `<tr><td><i class="sw" style="background:${GROUPCOL[m.group]}"></i><b>${m.name}</b><span class="small">${cov}</span></td><td>${LEANS[m.leaning]||LEANS[m.group]}<span class="small">${m.owner}</span></td><td class="num">${avg}</td></tr>`}).join("")+"</table>";
+}
+function drawChart(){
+  const svg=$("chart"),lg=$("legend");svg.innerHTML="";lg.innerHTML="";
+  const outs=outletsIn(prov);
+  if(!term){$("charttitle").textContent="Choose a term";
+    const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Pick a term above to see how each outlet uses it.";t.style.fill="var(--mute)";return}
+  $("charttitle").textContent=`${NAMES[prov]}: “${cap(term)}” per 1,000 headlines`;
+  if(!outs.length){const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="No<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Press by Province</title>
+<style>
+:root{--bg:#fafaf8;--fg:#1d1d1b;--mute:#6b6b66;--card:#fff;--line:#dcdcd6;--nodata:#ecebe6;
+--left:#c0392b;--center:#7a7a7a;--right:#2a6fb0;}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ececea;--mute:#9a9a94;--card:#1f1f1d;--line:#3a3a36;
+--nodata:#262624;--left:#e5685a;--center:#a0a0a0;--right:#5aa0e0;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:980px;margin:0 auto;padding:24px 16px 48px}
+a{color:var(--fg)}
+.back{display:inline-block;margin-bottom:10px;font-size:14px;color:var(--mute);text-decoration:none}
+.back:hover{color:var(--fg)}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 14px;max-width:70ch}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.pills a{font-size:13px;padding:4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--card);text-decoration:none}
+.pills a.cur{border-color:var(--fg);font-weight:600}
+.pills a.dim{color:var(--mute);background:var(--nodata)}
+.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px}
+select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card h2{font-size:14px;margin:0 0 8px;color:var(--mute);font-weight:600}
+svg text{fill:var(--fg);font-family:inherit}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
+.sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mute);font-weight:600;padding:0 6px 6px 0}
+td{padding:7px 6px 7px 0;border-top:1px solid var(--line);vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;padding-right:0}
+.small{display:block;color:var(--mute);font-size:12px}
+.empty{color:var(--mute);margin:0;max-width:60ch}
+.note{color:var(--mute);font-size:13px;margin-top:14px;max-width:80ch}
+#tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:6px;
+padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:5}
+</style>
+</head>
+<body>
+<main>
+<a class="back" id="back" href="index.html">← All of Canada</a>
+<h1 id="ptitle">Local press</h1>
+<p class="sub" id="psub"></p>
+<div class="pills" id="pnav"></div>
+<div class="controls"><label>Term <select id="term"></select></label></div>
+<div class="grid">
+  <div class="card"><h2 id="charttitle">Choose a term</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
+  <div class="card"><h2>Local outlets</h2><div id="table"></div></div>
+</div>
+<p class="note">Each line is one outlet's rate per 1,000 headlines (colour = Ground News leaning: red = left/lean left, grey = center, blue = lean right/right). The dashed line is the average of every outlet in the country, for comparison. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps in a line are missing data, not zero use. Postmedia papers share content, so several of them can move together.</p>
+</main>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script>
+const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
+const REG = {YT:"TER",NT:"TER",NU:"TER"};   // the three territories are one region
+const NAMES = {BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",TER:"Northern Territories"};
+const ORDER = ["BC","AB","SK","MB","ON","QC","NB","NS","PE","NL","TER"];
+const LEANS = {left:"Left",lean_left:"Lean Left",center:"Center",lean_right:"Lean Right",right:"Right"};
+const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
+const params = new URLSearchParams(location.search);
+let prov = ORDER.includes(params.get("p")) ? params.get("p") : "AB";
+let term = D.terms.includes(params.get("term")) ? params.get("term") : "";
+
+const $ = id => document.getElementById(id);
+function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+function mean(a){a=a.filter(v=>v!==null&&v!==undefined);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
+function outletsIn(p){return Object.keys(D.outlets).filter(o=>(REG[D.outlets[o].province]||D.outlets[o].province)===p)}
+const ACR={dei:"DEI",ndp:"NDP",uk:"UK",usa:"USA",bc:"BC",pm:"PM",mp:"MP",mps:"MPs",rcmp:"RCMP",covid:"COVID","covid-19":"COVID-19",ucp:"UCP",cbc:"CBC"};
+function cap(t){return t.split(" ").map(w=>ACR[w]||w.split("-").map(x=>ACR[x]||x.charAt(0).toUpperCase()+x.slice(1)).join("-")).join(" ")}
+function fmt(v){return v===null?"no data":v.toFixed(v<10?2:1)}
+function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
+function qs(p){return "?p="+p+(term?"&term="+encodeURIComponent(term):"")}
+
+function drawHeader(){
+  const outs=outletsIn(prov);
+  document.title=NAMES[prov]+" · Local Press";
+  $("ptitle").textContent=NAMES[prov]+": local press";
+  $("back").href="index.html";
+  $("psub").textContent=outs.length
+    ?`${outs.length} local outlet${outs.length===1?"":"s"} in the dataset. Pick a term to compare them with each other and with the country as a whole.`
+    :"";
+  $("pnav").innerHTML=ORDER.map(p=>`<a href="province.html${qs(p)}" class="${p===prov?"cur":""}${outletsIn(p).length?"":" dim"}">${NAMES[p]}</a>`).join("");
+}
+function drawTable(){
+  const outs=outletsIn(prov),box=$("table");
+  if(!outs.length){
+    box.innerHTML=`<p class="empty">No local outlets from ${NAMES[prov]} are in the dataset yet.${prov==="TER"?" The territories are mostly covered by national outlets, such as CBC North, which appear in the Canada-wide view. Territorial headlines may be added later.":""}</p>`;
+    return;
+  }
+  const any=D.rates[D.terms[0]];
+  box.innerHTML="<table><tr><th>Outlet</th><th>Leaning</th><th class=num>"+(term?"Avg per 1,000":"")+"</th></tr>"+outs.map(o=>{
+    const m=D.outlets[o],r=any[o],idx=r.map((v,i)=>v===null?-1:i).filter(i=>i>=0);
+    const cov=idx.length?`${Q[idx[0]]} to ${Q[idx[idx.length-1]]} · ${idx.length} quarter${idx.length===1?"":"s"}`:"no usable quarters";
+    const avg=term?fmt(mean(D.rates[term][o])):"";
+    return `<tr><td><i class="sw" style="background:${GROUPCOL[m.group]}"></i><b>${m.name}</b><span class="small">${cov}</span></td><td>${LEANS[m.leaning]||LEANS[m.group]}<span class="small">${m.owner}</span></td><td class="num">${avg}</td></tr>`}).join("")+"</table>";
+}
+function drawChart(){
+  const svg=$("chart"),lg=$("legend");svg.innerHTML="";lg.innerHTML="";
+  const outs=outletsIn(prov);
+  if(!term){$("charttitle").textContent="Choose a term";
+    const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Pick a term above to see how each outlet uses it.";t.style.fill="var(--mute)";return}
+  $("charttitle").textContent=`${NAMES[prov]}: “${cap(term)}” per 1,000 headlines`;
+  if(!outs.length){const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="No

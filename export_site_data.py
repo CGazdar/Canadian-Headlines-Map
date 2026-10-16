@@ -28,6 +28,7 @@ def main():
                 prov = OVERRIDE.get(r["outlet_id"], prov) or "NAT"
                 meta[r["outlet_id"]] = {"name": r["name"], "province": prov,
                                         "group": info[r["outlet_id"]][0],
+                                        "leaning": (r.get("leaning") or "").strip().lower(),
                                         "owner": info[r["outlet_id"]][1]}
     conn = connect()
     totals = {(q, o): n for q, o, n in conn.execute(

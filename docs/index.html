@@ -36,6 +36,7 @@ svg text{fill:var(--fg);font-family:inherit}
 .rampl{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:3px}
 .seg{display:inline-flex;gap:10px}
 .leg2{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mute)}.leg2 i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.pagelink{margin-top:12px;font-size:14px}.pagelink a{color:var(--fg);font-weight:600}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
 .sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
 .note{color:var(--mute);font-size:13px;margin-top:14px;max-width:80ch}
@@ -55,7 +56,7 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 </div>
 <div class="grid">
   <div class="card"><div class="cardhead"><h2 id="maptitle">Map</h2><button id="natbtn">All of Canada</button></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
-  <div class="card"><h2 id="charttitle">Select a province</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
+  <div class="card"><h2 id="charttitle">Select a province</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div><div class="pagelink" id="pagelink"></div></div>
 </div>
 <p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Colour shows the outlet's Ground News leaning (red = left/lean left, grey = center, blue = lean right/right). In “Leaning” mode a province takes the colour of the side whose outlets use the term most there; the deeper the colour, the bigger the lead. A province with outlets from only one side in the dataset takes that side's full colour, even though there is nothing to compare it with. Postmedia owns most blue outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see the same three groups for its outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
 </main>
@@ -65,17 +66,23 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <script>
 const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
 const MAP = window.MAP, NOLABEL = {NB:1,NS:1,PE:1};
-const NAMES = {YT:"Yukon",NT:"N.W.T.",NU:"Nunavut",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:"All outlets (national)"};
+const REG = {YT:"TER",NT:"TER",NU:"TER"};   // the three territories are shown as one region
+(function(){const P=MAP.paths,C=MAP.centres,parts=["YT","NT","NU"].filter(c=>P[c]);
+  if(parts.length){P.TER=parts.map(c=>P[c]).join("");C.TER=[0,1].map(k=>parts.reduce((s,c)=>s+C[c][k],0)/parts.length);parts.forEach(c=>{delete P[c];delete C[c]})}})();
+const NAMES = {TER:"Northern Territories",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:"All outlets (national)"};
 const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
 let term = "", sel = -1, prov = "NAT", mode = "lean";
 
 const $ = id => document.getElementById(id);
 function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
-function outletsIn(p){return Object.keys(D.outlets).filter(o=>D.outlets[o].province===p)}
+function outletsIn(p){return Object.keys(D.outlets).filter(o=>(REG[D.outlets[o].province]||D.outlets[o].province)===p)}
 function mean(a){a=a.filter(v=>v!==null&&v!==undefined);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
 // province value at quarter index i (mean over its outlets with data), or null
 function members(p){return p==="NAT"?Object.keys(D.outlets):outletsIn(p)}
 function provQ(p,i){return mean(members(p).map(o=>D.rates[term][o][i]))}
+function groupOutlets(g){return Object.keys(D.outlets).filter(o=>D.outlets[o].group===g)}
+function groupQ(g,i){return mean(groupOutlets(g).map(o=>D.rates[term][o][i]))}
+function groupN(g,i){return groupOutlets(g).filter(o=>D.rates[term][o][i]!==null).length}
 const ACR={dei:"DEI",ndp:"NDP",uk:"UK",usa:"USA",bc:"BC",pm:"PM",mp:"MP",mps:"MPs",rcmp:"RCMP",covid:"COVID","covid-19":"COVID-19",ucp:"UCP",cbc:"CBC"};
 function cap(t){return t.split(" ").map(w=>ACR[w]||w.split("-").map(x=>ACR[x]||x.charAt(0).toUpperCase()+x.slice(1)).join("-")).join(" ")}
 const GNAME={left:"Left",center:"Center",right:"Right"};
@@ -99,16 +106,22 @@ function colour(t){ // 0..1 -> ramp
   const pa=hex(a),pb=hex(b);return "rgb("+pa.map((x,i)=>Math.round(x+(pb[i]-x)*t)).join(",")+")"}
 function hex(h){h=h.replace("#","");return [0,2,4].map(i=>parseInt(h.substr(i,2),16))}
 
+function region(svg,p,fill,isSel,tipHtml){
+  const ter=p==="TER";
+  if(ter&&isSel){const h=el("path",{d:MAP.paths[p],class:"prov"},svg);h.style.fill="var(--fg)";h.style.stroke="var(--fg)";h.style.strokeWidth="4";h.style.pointerEvents="none"}
+  const path=el("path",{d:MAP.paths[p],class:"prov"+(isSel&&!ter?" sel":"")},svg);
+  path.style.fill=fill;
+  if(ter){path.style.stroke=fill;path.style.strokeWidth="1.4"}   // hides the seams between the three territories
+  path.addEventListener("mousemove",e=>tip(e,tipHtml));
+  path.addEventListener("mouseleave",()=>$("tip").style.display="none");
+  path.addEventListener("click",()=>{prov=p;draw()});
+}
+function regionOrder(codes){const rank=p=>p===prov?2:(p==="TER"?0:1);return codes.slice().sort((a,b)=>rank(a)-rank(b))}
 function drawMap(){
   const svg=$("map");svg.innerHTML="";
   svg.setAttribute("viewBox",`0 0 ${MAP.w} ${MAP.h}`);
   if(!term){
-    Object.keys(MAP.paths).forEach(p=>{
-      const path=el("path",{d:MAP.paths[p],class:"prov"+(p===prov?" sel":"")},svg);path.style.fill="var(--nodata)";
-      path.addEventListener("mousemove",e=>tip(e,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
-      path.addEventListener("mouseleave",()=>$("tip").style.display="none");
-      path.addEventListener("click",()=>{prov=p;draw()});
-    });
+    regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--nodata)",p===prov,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
     $("natbtn").textContent="All of Canada";$("natbtn").classList.toggle("on",prov==="NAT");
     $("scale").innerHTML='<div class="leg2"><span>Choose a term above to colour the map.</span></div>';
     $("maptitle").textContent="Choose a term";
@@ -140,19 +153,11 @@ function drawMap(){
     }
     info[p]={fill,dark,tipTxt,clickable:has||n};
   });
-  const order=codes.slice().sort((a,b)=>(a===prov)-(b===prov));   // selected drawn last, so its outline shows
-  order.forEach(p=>{
-    const f=info[p];
-    const path=el("path",{d:MAP.paths[p],class:"prov"+(f.clickable?"":" nodata")+(p===prov?" sel":"")},svg);
-    path.style.fill=f.fill;
-    path.addEventListener("mousemove",e=>tip(e,`<b>${NAMES[p]}</b><br>${f.tipTxt}`));
-    path.addEventListener("mouseleave",()=>$("tip").style.display="none");
-    if(f.clickable)path.addEventListener("click",()=>{prov=p;draw()});
-  });
+  regionOrder(codes).forEach(p=>region(svg,p,info[p].fill,p===prov,`<b>${NAMES[p]}</b><br>${info[p].tipTxt}`));   // selected is drawn last, so its outline shows
   codes.forEach(p=>{
     if(NOLABEL[p])return;
     const v=vals[p],c=MAP.centres[p];
-    const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);t.textContent=p;
+    const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);t.textContent=p==="TER"?"North":p;
     t.style.fill=info[p].dark?"#fff":"var(--fg)";
   });
   const nv=provVal("NAT");
@@ -171,7 +176,7 @@ function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t
 function drawChart(){
   const svg=$("chart"),lg=$("legend");svg.innerHTML="";lg.innerHTML="";
   if(!term){$("charttitle").textContent="Choose a term";
-    const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Please First Select a Term";t.style.fill="var(--mute)";return}
+    const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Pick a term above to see how it is used over time.";t.style.fill="var(--mute)";return}
   if(!prov){$("charttitle").textContent="Select a province";return}
   $("charttitle").textContent=`${NAMES[prov]}: “${cap(term)}” per 1,000 headlines`;
   if(!members(prov).length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No outlets from this province in the dataset.";return}
@@ -200,7 +205,13 @@ function drawChart(){
   hov.addEventListener("click",e=>setSel(idx(e)));
 }
 function setSel(i){sel=i;$("qslider").value=i;$("allbtn").classList.remove("on");draw()}
+function setLink(){
+  const d=$("pagelink");
+  if(!prov||prov==="NAT"){d.innerHTML="";return}
+  d.innerHTML=`<a href="province.html?p=${prov}${term?"&term="+encodeURIComponent(term):""}">See local press in ${NAMES[prov]} →</a>`;
+}
 function draw(){
+  setLink();
   $("qlabel").textContent=sel>=0?Q[sel]:"All";
   $("allbtn").classList.toggle("on",sel<0);
   drawMap();drawChart();
