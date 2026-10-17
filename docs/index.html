@@ -49,9 +49,10 @@ svg text{fill:var(--fg);font-family:inherit}
 .chip button.x{padding:3px 9px 3px 2px;color:var(--mute)}
 .chip.on{border-color:var(--fg)}.chip.on .nm{font-weight:600}
 .hint{font-size:12px;color:var(--mute)}
-.charts{display:flex;flex-direction:column;gap:16px}
-.mapcard{align-self:start}
-@media(min-width:761px){.mapcard{position:sticky;top:12px}}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.charts.n0 .card,.charts.n1 .card,.charts .pagelink{grid-column:1/-1}
+@media(max-width:760px){.charts{grid-template-columns:1fr}}
+.mapcard #map{max-height:72vh}
 .empty{color:var(--mute);margin:0}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
 .sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
@@ -71,7 +72,7 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
   <span class="seg" title="How the map is coloured"><button id="m-lean" class="on">Colour: leaning</button><button id="m-rate">Colour: rate</button></span>
 </div>
 <div class="chips" id="chips"></div>
-<div class="grid">
+<div class="mapwrap">
   <div class="card mapcard"><div class="cardhead"><h2 id="maptitle">Map</h2><button id="natbtn">All of Canada</button></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
   <div class="charts" id="charts"></div>
 </div>
@@ -219,7 +220,7 @@ function drawChart(svg,lg,ttl,t){
   hov.addEventListener("click",e=>setSel(idx(e)));
 }
 function drawCharts(){
-  const box=$("charts");box.innerHTML="";
+  const box=$("charts");box.innerHTML="";box.className="charts n"+Math.min(terms.length,2);
   if(!terms.length){box.innerHTML='<div class="card"><h2>Choose terms</h2><p class="empty">Pick one or more terms above to see how they are used over time. Each term gets its own chart.</p></div>';return}
   terms.forEach(t=>{
     const card=document.createElement("div");card.className="card";

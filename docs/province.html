@@ -34,9 +34,10 @@ button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(
 .chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--card);overflow:hidden}
 .chip button{border:0;border-radius:0;background:none;padding:3px 10px;font-size:13px}
 .chip button.x{padding:3px 9px 3px 2px;color:var(--mute)}
-.charts{display:flex;flex-direction:column;gap:16px}
-.tablecard{align-self:start}
-@media(min-width:761px){.tablecard{position:sticky;top:12px}}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.charts.n0 .card,.charts.n1 .card,.charts .pagelink{grid-column:1/-1}
+@media(max-width:760px){.charts{grid-template-columns:1fr}}
+
 .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
@@ -63,10 +64,8 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <div class="pills" id="pnav"></div>
 <div class="controls"><div class="termpick"><button id="tbtn" type="button">Choose terms ▾</button><div id="tpanel" hidden></div></div></div>
 <div class="chips" id="chips"></div>
-<div class="grid">
-  <div class="charts" id="charts"></div>
-  <div class="card tablecard"><h2>Local outlets</h2><div id="table"></div></div>
-</div>
+<div class="card tablecard"><h2>Local outlets</h2><div id="table"></div></div>
+<div class="charts" id="charts"></div>
 <p class="note">Each line is one outlet's rate per 1,000 headlines (colour = Ground News leaning: red = left/lean left, grey = center, blue = lean right/right). The dashed line is the average of every outlet in the country, for comparison. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps in a line are missing data, not zero use. Postmedia papers share content, so several of them can move together.</p>
 </main>
 <div id="tip"></div>
@@ -141,7 +140,7 @@ function drawChart(svg,lg,ttl,t){
   hov.addEventListener("mouseleave",()=>$("tip").style.display="none");
 }
 function drawCharts(){
-  const box=$("charts");box.innerHTML="";
+  const box=$("charts");box.innerHTML="";box.className="charts n"+Math.min(terms.length,2);
   if(!terms.length){box.innerHTML='<div class="card"><h2>Choose terms</h2><p class="empty">Pick one or more terms above to see how each outlet uses them. Each term gets its own chart.</p></div>';return}
   terms.forEach(t=>{
     const card=document.createElement("div");card.className="card";
