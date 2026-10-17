@@ -37,9 +37,9 @@ svg text{fill:var(--fg);font-family:inherit}
 .prov.nodata{cursor:default}
 /* before any term is chosen: no controls, red map with a soft inner glow along each border */
 body.pre .slider,body.pre #allbtn,body.pre .seg,body.pre #natbtn{display:none}
-#map.pre{background:var(--mapbg);border-radius:10px}
+#map.pre{border-radius:10px}
 #map.pre .prov{fill:var(--mapfill)!important;stroke:var(--mapfill)!important;stroke-width:1.2px!important;stroke-linejoin:round;filter:url(#redrim)}
-body.pre .mapcard{background:var(--mapbg)}.prov.sel{stroke:var(--fg);stroke-width:2.2}
+.prov.sel{stroke:var(--fg);stroke-width:2.2}
 .plabel{font-size:11px;font-weight:600;text-anchor:middle;pointer-events:none}
 .cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
 .cardhead h2{margin:0}
@@ -98,7 +98,6 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
   <div class="card mapcard"><div class="cardhead"><h2 id="maptitle">Map</h2><div class="btns"><button id="natbtn">All of Canada</button></div></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
   <div class="charts" id="charts"></div>
 </div>
-<p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Colour shows the outlet's Ground News leaning (red = left/lean left, grey = center, blue = lean right/right). In “Leaning” mode a province takes the colour of the side whose outlets use the term most there; the deeper the colour, the bigger the lead. A province with outlets from only one side in the dataset takes that side's full colour, even though there is nothing to compare it with. Postmedia owns most blue outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see the same three groups for its outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
 </main>
 <div id="tip"></div>
 <script src="data.js"></script>
@@ -217,7 +216,7 @@ function drawMap(){
   if(!term){
     regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--nodata)",false,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
     $("natbtn").textContent="All of Canada";$("natbtn").classList.toggle("on",prov==="NAT");
-    $("scale").innerHTML='<div class="leg2"><span>Choose a term above to colour the map.</span></div>';
+    $("scale").innerHTML="";
     $("maptitle").textContent="Choose terms";
     Object.keys(MAP.paths).forEach(p=>labelText(svg,p,"var(--maplabel)"));
     drawDots(svg);
@@ -296,7 +295,7 @@ function drawChart(svg,lg,ttl,t){
 }
 function drawCharts(){
   const box=$("charts");box.innerHTML="";box.className="charts n"+Math.min(terms.length,2);
-  if(!terms.length){box.innerHTML='<div class="card"><h2>Choose terms</h2><p class="empty">Pick one or more terms above to see how they are used over time. Each term gets its own chart.</p></div>';return}
+  if(!terms.length)return;
   terms.forEach(t=>{
     const card=document.createElement("div");card.className="card";
     card.innerHTML='<h2></h2><svg width="100%" viewBox="0 0 560 300"></svg><div class="legend"></div>';
