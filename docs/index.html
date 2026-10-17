@@ -37,7 +37,7 @@ svg text{fill:var(--fg);font-family:inherit}
 /* before any term is chosen: no controls, red map with a soft inner glow along each border */
 body.pre .slider,body.pre #allbtn,body.pre .seg,body.pre #dotbtn,body.pre #natbtn{display:none}
 #map.pre{background:#05090d;border-radius:10px}
-#map.pre .prov{fill:#0f141b!important;stroke:#e5685a!important;stroke-width:1.6px!important;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(229,104,90,.75))}
+#map.pre .prov{fill:#0f141b!important;stroke:#0f141b!important;stroke-width:1.2px!important;stroke-linejoin:round;filter:url(#redrim)}
 body.pre .mapcard{background:#05090d;border-color:#1c2b3a}
 body.pre .mapcard h2{color:#9fb3c4}.prov.sel{stroke:var(--fg);stroke-width:2.2}
 .plabel{font-size:11px;font-weight:600;text-anchor:middle;pointer-events:none}
@@ -188,17 +188,22 @@ function drawDots(svg){
     });
   });
 }
-const SMALL={NB:1,NS:1,PE:1};   // too small to fit a full name, so these keep their two-letter code
-function labelText(svg,p,col){
+function labelText(svg,p,col){   // provinces use their two-letter code; the territories keep their full name
   const c=MAP.centres[p];if(!c)return;
-  const t=el("text",{x:c[0],y:c[1]+3.5,class:"plabel"},svg);
-  t.textContent=SMALL[p]?p:(p==="NL"?"Newfoundland & Labrador":NAMES[p]);
-  t.style.fontSize=SMALL[p]?"8px":(p==="NL"?"7.5px":"9.5px");
+  const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);
+  t.textContent=p==="TER"?"Northern Territories":p;
+  if(p==="TER")t.style.fontSize="10px";
   t.style.fill=col;
 }
 function drawMap(){
   const svg=$("map");svg.innerHTML="";svg.classList.toggle("pre",!term);
-  el("defs",{},svg).innerHTML=`<filter id="terring" x="-3%" y="-3%" width="106%" height="106%">
+  el("defs",{},svg).innerHTML=`<filter id="redrim" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+    <feMorphology in="SourceAlpha" operator="dilate" radius="1.4" result="d"/>
+    <feComposite in="d" in2="SourceAlpha" operator="out" result="edge"/>
+    <feFlood flood-color="#e5685a" result="c"/><feComposite in="c" in2="edge" operator="in" result="line"/>
+    <feGaussianBlur in="line" stdDeviation="2.2" result="glow"/>
+    <feMerge><feMergeNode in="glow"/><feMergeNode in="line"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="terring" x="-3%" y="-3%" width="106%" height="106%">
     <feMorphology in="SourceAlpha" operator="dilate" radius="1" result="dil"/>
     <feFlood flood-color="#fff"/><feComposite in2="dil" operator="in" result="ring"/>
     <feMerge><feMergeNode in="ring"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
