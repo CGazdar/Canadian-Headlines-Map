@@ -23,6 +23,20 @@ h1{font-size:22px;margin:0 0 4px}
 .pills a.dim{color:var(--mute);background:var(--nodata)}
 .controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:14px}
 select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.termpick{position:relative}
+#tpanel{position:absolute;z-index:10;top:calc(100% + 6px);left:0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;min-width:250px;max-height:340px;overflow:auto;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+#tpanel[hidden]{display:none}
+#tpanel label{display:flex;gap:8px;align-items:center;padding:4px 6px;border-radius:5px;cursor:pointer;font-size:14px}
+#tpanel label:hover{background:var(--nodata)}
+#tpanel .clear{margin-top:6px;font-size:13px;width:100%}
+button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px;min-height:8px}
+.chip{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--card);overflow:hidden}
+.chip button{border:0;border-radius:0;background:none;padding:3px 10px;font-size:13px}
+.chip button.x{padding:3px 9px 3px 2px;color:var(--mute)}
+.charts{display:flex;flex-direction:column;gap:16px}
+.tablecard{align-self:start}
+@media(min-width:761px){.tablecard{position:sticky;top:12px}}
 .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
@@ -47,10 +61,11 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <h1 id="ptitle">Local press</h1>
 <p class="sub" id="psub"></p>
 <div class="pills" id="pnav"></div>
-<div class="controls"><label>Term <select id="term"></select></label></div>
+<div class="controls"><div class="termpick"><button id="tbtn" type="button">Choose terms ▾</button><div id="tpanel" hidden></div></div></div>
+<div class="chips" id="chips"></div>
 <div class="grid">
-  <div class="card"><h2 id="charttitle">Choose a term</h2><svg id="chart" width="100%" viewBox="0 0 560 300"></svg><div class="legend" id="legend"></div></div>
-  <div class="card"><h2>Local outlets</h2><div id="table"></div></div>
+  <div class="charts" id="charts"></div>
+  <div class="card tablecard"><h2>Local outlets</h2><div id="table"></div></div>
 </div>
 <p class="note">Each line is one outlet's rate per 1,000 headlines (colour = Ground News leaning: red = left/lean left, grey = center, blue = lean right/right). The dashed line is the average of every outlet in the country, for comparison. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps in a line are missing data, not zero use. Postmedia papers share content, so several of them can move together.</p>
 </main>
@@ -65,7 +80,7 @@ const LEANS = {left:"Left",lean_left:"Lean Left",center:"Center",lean_right:"Lea
 const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
 const params = new URLSearchParams(location.search);
 let prov = ORDER.includes(params.get("p")) ? params.get("p") : "AB";
-let term = D.terms.includes(params.get("term")) ? params.get("term") : "";
+let terms = (params.get("terms")||params.get("term")||"").split(",").filter(t=>D.terms.includes(t));
 
 const $ = id => document.getElementById(id);
 function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
@@ -75,7 +90,7 @@ const ACR={dei:"DEI",ndp:"NDP",uk:"UK",usa:"USA",bc:"BC",pm:"PM",mp:"MP",mps:"MP
 function cap(t){return t.split(" ").map(w=>ACR[w]||w.split("-").map(x=>ACR[x]||x.charAt(0).toUpperCase()+x.slice(1)).join("-")).join(" ")}
 function fmt(v){return v===null?"no data":v.toFixed(v<10?2:1)}
 function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
-function qs(p){return "?p="+p+(term?"&term="+encodeURIComponent(term):"")}
+function qs(p){return "?p="+p+(terms.length?"&terms="+encodeURIComponent(terms.join(",")):"")}
 
 function drawHeader(){
   const outs=outletsIn(prov);
@@ -83,7 +98,7 @@ function drawHeader(){
   $("ptitle").textContent=NAMES[prov]+": local press";
   $("back").href="index.html";
   $("psub").textContent=outs.length
-    ?`${outs.length} local outlet${outs.length===1?"":"s"} in the dataset. Pick a term to compare them with each other and with the country as a whole.`
+    ?`${outs.length} local outlet${outs.length===1?"":"s"} in the dataset. Pick one or more terms to compare the outlets with each other and with the country as a whole.`
     :"";
   $("pnav").innerHTML=ORDER.map(p=>`<a href="province.html${qs(p)}" class="${p===prov?"cur":""}${outletsIn(p).length?"":" dim"}">${NAMES[p]}</a>`).join("");
 }
@@ -94,21 +109,18 @@ function drawTable(){
     return;
   }
   const any=D.rates[D.terms[0]];
-  box.innerHTML="<table><tr><th>Outlet</th><th>Leaning</th><th class=num>"+(term?"Avg per 1,000":"")+"</th></tr>"+outs.map(o=>{
+  box.innerHTML="<table><tr><th>Outlet</th><th>Leaning</th><th class=num>"+(terms.length?"Avg per 1,000":"")+"</th></tr>"+outs.map(o=>{
     const m=D.outlets[o],r=any[o],idx=r.map((v,i)=>v===null?-1:i).filter(i=>i>=0);
     const cov=idx.length?`${Q[idx[0]]} to ${Q[idx[idx.length-1]]} · ${idx.length} quarter${idx.length===1?"":"s"}`:"no usable quarters";
-    const avg=term?fmt(mean(D.rates[term][o])):"";
+    const avg=terms.map(t=>`${terms.length>1?`<span class="small">${cap(t)}</span>`:""}${fmt(mean(D.rates[t][o]))}`).join("<br>");
     return `<tr><td><i class="sw" style="background:${GROUPCOL[m.group]}"></i><b>${m.name}</b><span class="small">${cov}</span></td><td>${LEANS[m.leaning]||LEANS[m.group]}<span class="small">${m.owner}</span></td><td class="num">${avg}</td></tr>`}).join("")+"</table>";
 }
-function drawChart(){
-  const svg=$("chart"),lg=$("legend");svg.innerHTML="";lg.innerHTML="";
+function drawChart(svg,lg,ttl,t){
   const outs=outletsIn(prov);
-  if(!term){$("charttitle").textContent="Choose a term";
-    const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="Pick a term above to see how each outlet uses it.";t.style.fill="var(--mute)";return}
-  $("charttitle").textContent=`${NAMES[prov]}: “${cap(term)}” per 1,000 headlines`;
-  if(!outs.length){const t=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);t.textContent="No local outlets here yet.";t.style.fill="var(--mute)";return}
-  const lines=outs.map(o=>({name:D.outlets[o].name,col:GROUPCOL[D.outlets[o].group],vals:D.rates[term][o]}));
-  const natl=Q.map((_,i)=>mean(Object.keys(D.outlets).map(o=>D.rates[term][o][i])));
+  ttl.textContent=`${NAMES[prov]}: “${cap(t)}” per 1,000 headlines`;
+  if(!outs.length){const x=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);x.textContent="No local outlets here yet.";x.style.fill="var(--mute)";return}
+  const lines=outs.map(o=>({name:D.outlets[o].name,col:GROUPCOL[D.outlets[o].group],vals:D.rates[t][o]}));
+  const natl=Q.map((_,i)=>mean(Object.keys(D.outlets).map(o=>D.rates[t][o][i])));
   const L=44,R=10,T=10,B=26,W=560,H=300,pw=W-L-R,ph=H-T-B;
   let ymax=0;lines.concat([{vals:natl}]).forEach(l=>l.vals.forEach(v=>{if(v!==null)ymax=Math.max(ymax,v)}));
   ymax=ymax||1;const nice=Math.pow(10,Math.floor(Math.log10(ymax))),step=[1,2,5,10].map(m=>m*nice).find(s=>ymax/s<=5)||nice*10,top=Math.ceil(ymax/step)*step;
@@ -128,11 +140,47 @@ function drawChart(){
     tip(e,`<b>${Q[i]}</b><br>`+lines.map(l=>`${l.name}: ${fmt(l.vals[i])}`).join("<br>")+`<br>All outlets, Canada: ${fmt(natl[i])}`)});
   hov.addEventListener("mouseleave",()=>$("tip").style.display="none");
 }
-function draw(){drawHeader();drawTable();drawChart()}
-(()=>{const o=document.createElement("option");o.value="";o.textContent="Choose term";$("term").appendChild(o)})();
-D.terms.slice().sort((a,b)=>a.localeCompare(b)).forEach(t=>{const o=document.createElement("option");o.value=t;o.textContent=cap(t);$("term").appendChild(o)});
-$("term").value=term;
-$("term").addEventListener("change",e=>{term=e.target.value;history.replaceState(null,"",qs(prov));draw()});
+function drawCharts(){
+  const box=$("charts");box.innerHTML="";
+  if(!terms.length){box.innerHTML='<div class="card"><h2>Choose terms</h2><p class="empty">Pick one or more terms above to see how each outlet uses them. Each term gets its own chart.</p></div>';return}
+  terms.forEach(t=>{
+    const card=document.createElement("div");card.className="card";
+    card.innerHTML='<h2></h2><svg width="100%" viewBox="0 0 560 300"></svg><div class="legend"></div>';
+    box.appendChild(card);
+    drawChart(card.querySelector("svg"),card.querySelector(".legend"),card.querySelector("h2"),t);
+  });
+}
+function drawChips(){
+  const box=$("chips");box.innerHTML="";
+  terms.forEach(t=>{
+    const c=document.createElement("span");c.className="chip";
+    c.innerHTML=`<button class="nm" type="button" disabled style="color:var(--fg)">${cap(t)}</button><button class="x" type="button" title="Remove" aria-label="Remove ${cap(t)}">×</button>`;
+    c.querySelector(".x").addEventListener("click",()=>toggleTerm(t,false));
+    box.appendChild(c);
+  });
+  $("tbtn").textContent=terms.length?`Terms (${terms.length}) ▾`:"Choose terms ▾";
+}
+function toggleTerm(t,on){
+  terms=on?terms.concat(t):terms.filter(x=>x!==t);
+  document.querySelectorAll("#tpanel input[type=checkbox]").forEach(cb=>{cb.checked=terms.includes(cb.value)});
+  history.replaceState(null,"",qs(prov));
+  draw();
+}
+function draw(){drawHeader();drawTable();drawChips();drawCharts()}
+(function buildPicker(){
+  const panel=$("tpanel");
+  D.terms.slice().sort((a,b)=>a.localeCompare(b)).forEach(t=>{
+    const lab=document.createElement("label");
+    lab.innerHTML=`<input type="checkbox" value="${t}"${terms.includes(t)?" checked":""}> ${cap(t)}`;
+    lab.querySelector("input").addEventListener("change",e=>toggleTerm(t,e.target.checked));
+    panel.appendChild(lab);
+  });
+  const clr=document.createElement("button");clr.type="button";clr.className="clear";clr.textContent="Clear all";
+  clr.addEventListener("click",()=>{terms=[];document.querySelectorAll("#tpanel input").forEach(cb=>cb.checked=false);history.replaceState(null,"",qs(prov));draw()});
+  panel.appendChild(clr);
+  $("tbtn").addEventListener("click",e=>{e.stopPropagation();panel.hidden=!panel.hidden});
+  document.addEventListener("click",e=>{if(!panel.contains(e.target)&&e.target!==$("tbtn"))panel.hidden=true});
+})();
 draw();
 </script>
 </body>
