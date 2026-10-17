@@ -267,7 +267,7 @@ function drawMap(){
 function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
 
 function drawChart(svg,lg,ttl,t){
-  ttl.textContent=`Instances of “${cap(t)}” in ${prov==="NAT"?"Canada":NAMES[prov]} (per 100,000 headlines)`;
+  ttl.textContent=`Instances of “${cap(t)}” in ${prov==="NAT"?"Canada":NAMES[prov]} Outlets (per 100,000 headlines)`;
   if(!members(prov).length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No outlets from this province in the dataset.";return}
   const lines=["left","center","right"].map(g=>{
     const os=members(prov).filter(o=>D.outlets[o].group===g);
