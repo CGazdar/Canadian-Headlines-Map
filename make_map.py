@@ -21,6 +21,24 @@ NAME_TO_CODE = {"Alberta": "AB", "British Columbia": "BC", "Manitoba": "MB", "Ne
                 "Nunavut": "NU", "Ontario": "ON", "Prince Edward Island": "PE", "Quebec": "QC",
                 "Québec": "QC", "Saskatchewan": "SK", "Yukon": "YT", "Yukon Territory": "YT"}
 
+# Where each newspaper is based. Key = outlet_id from outlets.csv; value = (city, latitude, longitude).
+# National outlets (CBC, CTV, Global, Globe, National Post, Maclean's) are left out on purpose.
+# To add one later (e.g. a Yukon paper), add a line here and run this script again.
+OUTLET_CITIES = {
+    "vansun": ("Vancouver", 49.2827, -123.1207), "province": ("Vancouver", 49.2827, -123.1207),
+    "tyee": ("Vancouver", 49.2827, -123.1207),
+    "calgaryherald": ("Calgary", 51.0447, -114.0719), "calgarysun": ("Calgary", 51.0447, -114.0719),
+    "edmontonjournal": ("Edmonton", 53.5461, -113.4938), "edmontonsun": ("Edmonton", 53.5461, -113.4938),
+    "leaderpost": ("Regina", 50.4452, -104.6189), "starphoenix": ("Saskatoon", 52.1332, -106.6700),
+    "wfp": ("Winnipeg", 49.8951, -97.1384), "winnipegsun": ("Winnipeg", 49.8951, -97.1384),
+    "star": ("Toronto", 43.6532, -79.3832), "torontosun": ("Toronto", 43.6532, -79.3832),
+    "ottawacitizen": ("Ottawa", 45.4215, -75.6972), "ottawasun": ("Ottawa", 45.4215, -75.6972),
+    "gazette": ("Montreal", 45.5017, -73.5673), "lapresse": ("Montreal", 45.5017, -73.5673),
+    "ledevoir": ("Montreal", 45.5017, -73.5673), "jdm": ("Montreal", 45.5017, -73.5673),
+    "chronicleherald": ("Halifax", 44.6488, -63.5752), "saltwire": ("Halifax", 44.6488, -63.5752),
+    "telegraph": ("Saint John", 45.2733, -66.0633),
+}
+
 
 def lcc(lon, lat, lat1=49.0, lat2=77.0, lat0=63.390675, lon0=-91.866667):
     """Lambert conformal conic (the projection Statistics Canada uses for Canada)."""
@@ -130,9 +148,13 @@ def main():
         bx = [x for x, _ in biggest]
         by = [y for _, y in biggest]                 # label spot: centre of the largest piece
         centres[code] = [round((min(bx) + max(bx)) / 2, 1), round((min(by) + max(by)) / 2, 1)]
+    dots = {}
+    for oid, (city, lat, lon) in OUTLET_CITIES.items():
+        px, py = lcc(lon, lat)
+        dots[oid] = [round((px - x0) * s, 1), round((y1 - py) * s, 1), city]
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text("window.MAP = " + json.dumps({"w": WIDTH, "h": H, "paths": provinces,
-                                                "centres": centres}) + ";\n", encoding="utf-8")
+                                                "centres": centres, "dots": dots}) + ";\n", encoding="utf-8")
     print(f"wrote {OUT}: {len(provinces)} provinces/territories, {OUT.stat().st_size // 1024} KB")
     missing = sorted(set(NAME_TO_CODE.values()) - set(provinces))
     if missing:
