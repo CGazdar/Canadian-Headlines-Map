@@ -188,6 +188,14 @@ function drawDots(svg){
     });
   });
 }
+const SMALL={NB:1,NS:1,PE:1};   // too small to fit a full name, so these keep their two-letter code
+function labelText(svg,p,col){
+  const c=MAP.centres[p];if(!c)return;
+  const t=el("text",{x:c[0],y:c[1]+3.5,class:"plabel"},svg);
+  t.textContent=SMALL[p]?p:(p==="NL"?"Newfoundland & Labrador":NAMES[p]);
+  t.style.fontSize=SMALL[p]?"8px":(p==="NL"?"7.5px":"9.5px");
+  t.style.fill=col;
+}
 function drawMap(){
   const svg=$("map");svg.innerHTML="";svg.classList.toggle("pre",!term);
   el("defs",{},svg).innerHTML=`<filter id="terring" x="-3%" y="-3%" width="106%" height="106%">
@@ -200,6 +208,7 @@ function drawMap(){
     $("natbtn").textContent="All of Canada";$("natbtn").classList.toggle("on",prov==="NAT");
     $("scale").innerHTML='<div class="leg2"><span>Choose a term above to colour the map.</span></div>';
     $("maptitle").textContent="Choose terms";
+    Object.keys(MAP.paths).forEach(p=>labelText(svg,p,"#d5dee6"));
     drawDots(svg);
     return;
   }
@@ -230,12 +239,7 @@ function drawMap(){
     info[p]={fill,dark,tipTxt,clickable:has||n};
   });
   regionOrder(codes).forEach(p=>region(svg,p,info[p].fill,p===prov,`<b>${NAMES[p]}</b><br>${info[p].tipTxt}`));   // selected is drawn last, so its outline shows
-  codes.forEach(p=>{
-    if(NOLABEL[p])return;
-    const v=vals[p],c=MAP.centres[p];
-    const t=el("text",{x:c[0],y:c[1]+4,class:"plabel"},svg);t.textContent=p==="TER"?"North":p;
-    t.style.fill=info[p].dark?"#fff":"var(--fg)";
-  });
+  codes.forEach(p=>labelText(svg,p,info[p].dark?"#fff":"var(--fg)"));
   const nv=provVal("NAT");
   let ntxt="All of Canada";
   if(mode==="rate"){if(nv!==null)ntxt+=" · "+fmt(nv)}
