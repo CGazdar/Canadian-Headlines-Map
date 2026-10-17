@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Local Press by Province</title>
+<script>(function(){var t=null;try{t=localStorage.getItem("theme")}catch(e){}if(!t)t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.dataset.theme=t})()</script>
 <style>
 :root{--bg:#fafaf8;--fg:#1d1d1b;--mute:#6b6b66;--card:#fff;--line:#dcdcd6;--nodata:#ecebe6;
 --left:#c0392b;--center:#7a7a7a;--right:#2a6fb0;}
-@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ececea;--mute:#9a9a94;--card:#1f1f1d;--line:#3a3a36;
---nodata:#262624;--left:#e5685a;--center:#a0a0a0;--right:#5aa0e0;}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#ececea;--mute:#9a9a94;--card:#1f1f1d;--line:#3a3a36;
+--nodata:#262624;--left:#e5685a;--center:#a0a0a0;--right:#5aa0e0;}
 *{box-sizing:border-box}
 .nav{border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:20}
 .nav .in{max-width:980px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
@@ -61,10 +62,15 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;padding-right:0
 .note{color:var(--mute);font-size:13px;margin-top:14px;max-width:80ch}
 #tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:6px;
 padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:5}
+.nav button{font:inherit;font-size:13px;padding:5px 10px;margin-left:6px;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:999px;cursor:pointer}
+.nav button.tog[aria-pressed=false]{color:var(--mute)}
+:root{--mapbg:#f1f0eb;--mapfill:#ffffff;--mapline:#111111;--maplabel:#1d1d1b}
+:root[data-theme=dark]{--mapbg:#05090d;--mapfill:#0f141b;--mapline:#e5685a;--maplabel:#d5dee6}
+:root{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 </style>
 </head>
 <body>
-<nav class="nav"><div class="in"><a class="brand" href="index.html">Canadian Headline Terms</a><a class="tab" href="index.html">Map</a><a class="tab" href="province.html" aria-current="page">Provinces</a><a class="tab" href="about.html">About</a><a class="tab" href="data.html">Data</a></div></nav>
+<nav class="nav"><div class="in"><a class="brand" href="index.html">Canadian Headline Terms</a><a class="tab" href="index.html">Map</a><a class="tab" href="province.html" aria-current="page">Provinces</a><a class="tab" href="about.html">About</a><a class="tab" href="data.html">Data</a><button id="themebtn" type="button" aria-label="Switch between light and dark mode">Dark mode</button></div></nav>
 <main>
 <a class="back" id="back" href="index.html">← All of Canada</a>
 <h1 id="ptitle">Local press</h1>
@@ -193,6 +199,12 @@ function draw(){drawHeader();drawTable();drawChips();drawCharts()}
   document.addEventListener("click",e=>{if(!panel.contains(e.target)&&e.target!==$("tbtn"))panel.hidden=true});
 })();
 draw();
+</script>
+<script>
+(function(){var b=document.getElementById("themebtn");if(!b)return;
+function label(){b.textContent=document.documentElement.dataset.theme==="dark"?"☀ Light mode":"☾ Dark mode"}
+label();
+b.addEventListener("click",function(){var t=document.documentElement.dataset.theme==="dark"?"light":"dark";document.documentElement.dataset.theme=t;try{localStorage.setItem("theme",t)}catch(e){}label();if(window.onTheme)window.onTheme()})})();
 </script>
 </body>
 </html>
