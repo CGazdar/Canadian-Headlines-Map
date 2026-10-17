@@ -48,7 +48,8 @@ def main():
     used = sorted({o for (_, o) in totals})
     data = {"quarters": quarters, "terms": watch,
             "outlets": {o: meta[o] for o in used},
-            "rates": {t: {o: rates[t][o] for o in used} for t in watch}}
+            "rates": {t: {o: rates[t][o] for o in used} for t in watch},
+            "totals": {o: [totals.get((q, o)) for q in quarters] for o in used}}
     out = HERE / "docs"
     out.mkdir(exist_ok=True)
     (out / "data.js").write_text("window.DATA = " + json.dumps(data) + ";\n", encoding="utf-8")

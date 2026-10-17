@@ -33,7 +33,10 @@ button.on{border-color:var(--fg)}
 .card h2{font-size:14px;margin:0 0 8px;color:var(--mute);font-weight:600}
 svg text{fill:var(--fg);font-family:inherit}
 .prov{stroke:var(--card);stroke-width:.8;stroke-linejoin:round;cursor:pointer}
-.prov.nodata{cursor:default}.prov.sel{stroke:var(--fg);stroke-width:2.2}
+.prov.nodata{cursor:default}
+/* before any term is chosen: no controls, red map with a soft inner glow along each border */
+body.pre .slider,body.pre #allbtn,body.pre .seg,body.pre #dotbtn,body.pre #natbtn{display:none}
+#map.pre .prov{stroke:none;filter:url(#edgeglow)}.prov.sel{stroke:var(--fg);stroke-width:2.2}
 .plabel{font-size:11px;font-weight:600;text-anchor:middle;pointer-events:none}
 .cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
 .cardhead h2{margin:0}
@@ -147,6 +150,23 @@ function region(svg,p,fill,isSel,tipHtml){
   path.addEventListener("click",()=>{prov=p;draw()});
 }
 function regionOrder(codes){const rank=p=>p===prov?2:(p==="TER"?0:1);return codes.slice().sort((a,b)=>rank(a)-rank(b))}
+function dotTip(o,m,d){
+  let h=`<b>${m.name}</b><br>${d[2]} · ${LEANLABEL[m.leaning]||GNAME[m.group]}`;
+  const T=D.totals&&D.totals[o];if(!T)return h;
+  const num=n=>n.toLocaleString();
+  if(!terms.length){            // no term yet: everything we have for this outlet
+    const n=T.reduce((a,v)=>a+(v||0),0);
+    return h+`<br>${num(n)} headlines analysed, ${Q[0]} to ${Q[Q.length-1]}`;
+  }
+  if(sel>=0){
+    const n=T[sel];
+    if(n===null||n===undefined)return h+`<br>No usable data in ${Q[sel]}`;
+    const r=D.rates[term][o][sel];
+    return h+`<br>${num(n)} headlines in ${Q[sel]}<br>“${cap(term)}”: ${fmt(r)} per 1,000`;
+  }
+  const n=T.reduce((a,v)=>a+(v||0),0),rs=D.rates[term][o].filter(v=>v!==null);
+  return h+`<br>${num(n)} headlines, all quarters<br>“${cap(term)}”: ${fmt(rs.length?rs.reduce((a,v)=>a+v,0)/rs.length:null)} per 1,000 (average)`;
+}
 function drawDots(svg){
   if(!showDots||!MAP.dots)return;
   const byCity={};
@@ -157,17 +177,27 @@ function drawDots(svg){
       const d=MAP.dots[o],m=D.outlets[o],a=2*Math.PI*i/n-Math.PI/2,r=n>1?(n>3?6:4.2):0;   // papers in one city fan out around it
       const c=el("circle",{cx:d[0]+r*Math.cos(a),cy:d[1]+r*Math.sin(a),r:3.4,class:"dot"},svg);
       c.style.fill="var(--"+m.group+")";
-      c.addEventListener("mousemove",e=>tip(e,`<b>${m.name}</b><br>${d[2]} · ${LEANLABEL[m.leaning]||GNAME[m.group]}`));
+      c.addEventListener("mousemove",e=>tip(e,dotTip(o,m,d)));
       c.addEventListener("mouseleave",()=>$("tip").style.display="none");
       c.addEventListener("click",()=>{const p=REG[m.province]||m.province;if(MAP.paths[p]){prov=p;draw()}});
     });
   });
 }
 function drawMap(){
-  const svg=$("map");svg.innerHTML="";
+  const svg=$("map");svg.innerHTML="";svg.classList.toggle("pre",!term);
+  if(!term){
+    const defs=el("defs",{},svg);
+    defs.innerHTML=`<filter id="edgeglow" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feComponentTransfer in="SourceAlpha" result="inv"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
+      <feGaussianBlur in="inv" stdDeviation="5" result="blur"/>
+      <feFlood flood-color="#6e1710" flood-opacity=".38" result="col"/>
+      <feComposite in="col" in2="blur" operator="in" result="rim"/>
+      <feComposite in="rim" in2="SourceAlpha" operator="in" result="rimclip"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="rimclip"/></feMerge></filter>`;
+  }
   svg.setAttribute("viewBox",`0 0 ${MAP.w} ${MAP.h}`);
   if(!term){
-    regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--nodata)",p===prov,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
+    regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--left)",false,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
     $("natbtn").textContent="All of Canada";$("natbtn").classList.toggle("on",prov==="NAT");
     $("scale").innerHTML='<div class="leg2"><span>Choose a term above to colour the map.</span></div>';
     $("maptitle").textContent="Choose terms";
@@ -266,6 +296,7 @@ function drawCharts(){
 }
 function setSel(i){sel=i;$("qslider").value=i;$("allbtn").classList.remove("on");draw()}
 function draw(){
+  document.body.classList.toggle("pre",!terms.length);
   $("qlabel").textContent=sel>=0?Q[sel]:"All";
   $("allbtn").classList.toggle("on",sel<0);
   drawChips();drawMap();drawCharts();
