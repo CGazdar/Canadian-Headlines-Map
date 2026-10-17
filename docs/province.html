@@ -74,12 +74,14 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <div class="chips" id="chips"></div>
 <div class="card tablecard"><h2>Local outlets</h2><div id="table"></div></div>
 <div class="charts" id="charts"></div>
-<p class="note">Each line is one outlet's rate per 1,000 headlines (colour = Ground News leaning: red = left/lean left, grey = center, blue = lean right/right). The dashed line is the average of every outlet in the country, for comparison. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps in a line are missing data, not zero use. Postmedia papers share content, so several of them can move together.</p>
+<p class="note">Each line is one outlet's rate per 100,000 headlines (colour = Ground News leaning: red = left/lean left, grey = center, blue = lean right/right). The dashed line is the average of every outlet in the country, for comparison. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps in a line are missing data, not zero use. Postmedia papers share content, so several of them can move together.</p>
 </main>
 <div id="tip"></div>
 <script src="data.js"></script>
 <script>
 const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
+Object.values(D.rates).forEach(by=>Object.keys(by).forEach(o=>{by[o]=by[o].map(v=>v===null?null:v*100)}));   // site shows rates per 100,000 headlines
+
 const REG = {YT:"TER",NT:"TER",NU:"TER"};   // the three territories are one region
 const NAMES = {BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",TER:"Northern Territories"};
 const ORDER = ["BC","AB","SK","MB","ON","QC","NB","NS","PE","NL","TER"];
@@ -95,7 +97,7 @@ function mean(a){a=a.filter(v=>v!==null&&v!==undefined);return a.length?a.reduce
 function outletsIn(p){return Object.keys(D.outlets).filter(o=>(REG[D.outlets[o].province]||D.outlets[o].province)===p)}
 const ACR={dei:"DEI",ndp:"NDP",uk:"UK",usa:"USA",bc:"BC",pm:"PM",mp:"MP",mps:"MPs",rcmp:"RCMP",covid:"COVID","covid-19":"COVID-19",ucp:"UCP",cbc:"CBC"};
 function cap(t){return t.split(" ").map(w=>ACR[w]||w.split("-").map(x=>ACR[x]||x.charAt(0).toUpperCase()+x.slice(1)).join("-")).join(" ")}
-function fmt(v){return v===null?"no data":v.toFixed(v<10?2:1)}
+function fmt(v){return v===null?"no data":v.toFixed(v<10?2:v<100?1:0)}
 function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
 function qs(p){return "?p="+p+(terms.length?"&terms="+encodeURIComponent(terms.join(",")):"")}
 
@@ -116,7 +118,7 @@ function drawTable(){
     return;
   }
   const any=D.rates[D.terms[0]];
-  box.innerHTML="<table><tr><th>Outlet</th><th>Leaning</th><th class=num>"+(terms.length?"Avg per 1,000":"")+"</th></tr>"+outs.map(o=>{
+  box.innerHTML="<table><tr><th>Outlet</th><th>Leaning</th><th class=num>"+(terms.length?"Avg per 100,000":"")+"</th></tr>"+outs.map(o=>{
     const m=D.outlets[o],r=any[o],idx=r.map((v,i)=>v===null?-1:i).filter(i=>i>=0);
     const cov=idx.length?`${Q[idx[0]]} to ${Q[idx[idx.length-1]]} · ${idx.length} quarter${idx.length===1?"":"s"}`:"no usable quarters";
     const avg=terms.map(t=>`${terms.length>1?`<span class="small">${cap(t)}</span>`:""}${fmt(mean(D.rates[t][o]))}`).join("<br>");
@@ -124,7 +126,7 @@ function drawTable(){
 }
 function drawChart(svg,lg,ttl,t){
   const outs=outletsIn(prov);
-  ttl.textContent=`${NAMES[prov]}: “${cap(t)}” per 1,000 headlines`;
+  ttl.textContent=`Instances of “${cap(t)}” in ${prov==="NAT"?"Canada":NAMES[prov]} (per 100,000 headlines)`;
   if(!outs.length){const x=el("text",{x:280,y:150,"text-anchor":"middle","font-size":15},svg);x.textContent="No local outlets here yet.";x.style.fill="var(--mute)";return}
   const lines=outs.map(o=>({name:D.outlets[o].name,col:GROUPCOL[D.outlets[o].group],vals:D.rates[t][o]}));
   const natl=Q.map((_,i)=>mean(Object.keys(D.outlets).map(o=>D.rates[t][o][i])));

@@ -36,7 +36,10 @@ svg text{fill:var(--fg);font-family:inherit}
 .prov.nodata{cursor:default}
 /* before any term is chosen: no controls, red map with a soft inner glow along each border */
 body.pre .slider,body.pre #allbtn,body.pre .seg,body.pre #dotbtn,body.pre #natbtn{display:none}
-#map.pre .prov{stroke:none;filter:url(#edgeglow)}.prov.sel{stroke:var(--fg);stroke-width:2.2}
+#map.pre{background:#070f16;border-radius:10px}
+#map.pre .prov{fill:#16294a!important;stroke:#e5685a!important;stroke-width:1.6px!important;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(229,104,90,.75))}
+body.pre .mapcard{background:#070f16;border-color:#1c2b3a}
+body.pre .mapcard h2{color:#9fb3c4}.prov.sel{stroke:var(--fg);stroke-width:2.2}
 .plabel{font-size:11px;font-weight:600;text-anchor:middle;pointer-events:none}
 .cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
 .cardhead h2{margin:0}
@@ -78,7 +81,7 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <nav class="nav"><div class="in"><a class="brand" href="index.html">Canadian Headline Terms</a><a class="tab" href="index.html" aria-current="page">Map</a><a class="tab" href="province.html">Provinces</a><a class="tab" href="about.html">About</a><a class="tab" href="data.html">Data</a></div></nav>
 <main>
 <h1>Canadian headline terms, 2019 to now</h1>
-<p class="sub">How often a term appears in headlines, per 1,000, by province of the outlet. Click a province, or “All of Canada”, to see the three leaning groups over time. Grey provinces have no usable data for the chosen period.</p>
+<p class="sub">How often a term appears in headlines, per 100,000, by province of the outlet. Click a province, or “All of Canada”, to see the three leaning groups over time. Grey provinces have no usable data for the chosen period.</p>
 <div class="controls">
   <div class="termpick"><button id="tbtn" type="button">Choose terms ▾</button><div id="tpanel" hidden></div></div>
   <div class="slider"><input id="qslider" type="range" min="0" value="0"><span class="q" id="qlabel"></span></div>
@@ -97,6 +100,8 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <script src="map.js"></script>
 <script>
 const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
+Object.values(D.rates).forEach(by=>Object.keys(by).forEach(o=>{by[o]=by[o].map(v=>v===null?null:v*100)}));   // site shows rates per 100,000 headlines
+
 const MAP = window.MAP, NOLABEL = {NB:1,NS:1,PE:1};
 const LEANLABEL={left:"Left",lean_left:"Lean left",center:"Center",lean_right:"Lean right",right:"Right"};
 const REG = {YT:"TER",NT:"TER",NU:"TER"};   // the three territories are shown as one region
@@ -132,7 +137,7 @@ function provVal(p){
   if(sel>=0)return provQ(p,sel);
   return mean(Q.map((_,i)=>provQ(p,i)));
 }
-function fmt(v){return v===null?"no data":v.toFixed(v<10?2:1)}
+function fmt(v){return v===null?"no data":v.toFixed(v<10?2:v<100?1:0)}
 function colour(t){ // 0..1 -> ramp
   const cs=getComputedStyle(document.documentElement);
   const a=cs.getPropertyValue("--ramp0").trim(),b=cs.getPropertyValue("--ramp1").trim();
@@ -162,10 +167,10 @@ function dotTip(o,m,d){
     const n=T[sel];
     if(n===null||n===undefined)return h+`<br>No usable data in ${Q[sel]}`;
     const r=D.rates[term][o][sel];
-    return h+`<br>${num(n)} headlines in ${Q[sel]}<br>“${cap(term)}”: ${fmt(r)} per 1,000`;
+    return h+`<br>${num(n)} headlines in ${Q[sel]}<br>“${cap(term)}”: ${fmt(r)} per 100,000`;
   }
   const n=T.reduce((a,v)=>a+(v||0),0),rs=D.rates[term][o].filter(v=>v!==null);
-  return h+`<br>${num(n)} headlines, all quarters<br>“${cap(term)}”: ${fmt(rs.length?rs.reduce((a,v)=>a+v,0)/rs.length:null)} per 1,000 (average)`;
+  return h+`<br>${num(n)} headlines, all quarters<br>“${cap(term)}”: ${fmt(rs.length?rs.reduce((a,v)=>a+v,0)/rs.length:null)} per 100,000 (average)`;
 }
 function drawDots(svg){
   if(!showDots||!MAP.dots)return;
@@ -185,19 +190,9 @@ function drawDots(svg){
 }
 function drawMap(){
   const svg=$("map");svg.innerHTML="";svg.classList.toggle("pre",!term);
-  if(!term){
-    const defs=el("defs",{},svg);
-    defs.innerHTML=`<filter id="edgeglow" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
-      <feComponentTransfer in="SourceAlpha" result="inv"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
-      <feGaussianBlur in="inv" stdDeviation="5" result="blur"/>
-      <feFlood flood-color="#6e1710" flood-opacity=".38" result="col"/>
-      <feComposite in="col" in2="blur" operator="in" result="rim"/>
-      <feComposite in="rim" in2="SourceAlpha" operator="in" result="rimclip"/>
-      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="rimclip"/></feMerge></filter>`;
-  }
   svg.setAttribute("viewBox",`0 0 ${MAP.w} ${MAP.h}`);
   if(!term){
-    regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--left)",false,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
+    regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--nodata)",false,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
     $("natbtn").textContent="All of Canada";$("natbtn").classList.toggle("on",prov==="NAT");
     $("scale").innerHTML='<div class="leg2"><span>Choose a term above to colour the map.</span></div>';
     $("maptitle").textContent="Choose terms";
@@ -217,7 +212,7 @@ function drawMap(){
     const rates=gk.map(g=>`${GNAME[g]}: ${fmt(gs[g])}`).join("<br>");
     if(mode==="rate"){
       if(has){const t=Math.min(1,v/top);fill=colour(t);dark=t>0.55}
-      tipTxt=has?`${fmt(v)} per 1,000<br>${n} outlet${n===1?"":"s"} in dataset`:`no data in this period<br>${n} outlet${n===1?"":"s"} in dataset`;
+      tipTxt=has?`${fmt(v)} per 100,000<br>${n} outlet${n===1?"":"s"} in dataset`:`no data in this period<br>${n} outlet${n===1?"":"s"} in dataset`;
     }else{
       if(!gk.length)tipTxt=`no data in this period<br>${n} outlet${n===1?"":"s"} in dataset`;
       else if(Math.max(...gk.map(g=>gs[g]))<=0)tipTxt="term not used in this period";
@@ -244,7 +239,7 @@ function drawMap(){
   $("natbtn").textContent=ntxt;
   $("natbtn").classList.toggle("on",prov==="NAT");
   $("scale").innerHTML=mode==="rate"
-    ?`<div class="ramp"></div><div class="rampl"><span>0</span><span>${top.toFixed(top<10?2:1)} per 1,000 headlines</span></div>`
+    ?`<div class="ramp"></div><div class="rampl"><span>0</span><span>${top.toFixed(top<10?2:1)} per 100,000 headlines</span></div>`
     :`<div class="leg2"><span><i style="background:var(--left)"></i>Left uses it most</span><span><i style="background:var(--center)"></i>Center</span><span><i style="background:var(--right)"></i>Right</span><span><i style="background:var(--nodata)"></i>No data</span></div>`;
   $("maptitle").textContent=`“${cap(term)}” — ${sel>=0?Q[sel]:"all quarters"}`;
   drawDots(svg);
@@ -252,7 +247,7 @@ function drawMap(){
 function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
 
 function drawChart(svg,lg,ttl,t){
-  ttl.textContent=`${NAMES[prov]}: “${cap(t)}” per 1,000 headlines`;
+  ttl.textContent=`Instances of “${cap(t)}” in ${prov==="NAT"?"Canada":NAMES[prov]} (per 100,000 headlines)`;
   if(!members(prov).length){el("text",{x:20,y:40,"font-size":14},svg).textContent="No outlets from this province in the dataset.";return}
   const lines=["left","center","right"].map(g=>{
     const os=members(prov).filter(o=>D.outlets[o].group===g);
