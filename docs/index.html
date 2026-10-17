@@ -53,6 +53,9 @@ svg text{fill:var(--fg);font-family:inherit}
 .charts.n0 .card,.charts.n1 .card,.charts .pagelink{grid-column:1/-1}
 @media(max-width:760px){.charts{grid-template-columns:1fr}}
 .mapcard #map{max-height:72vh}
+.dot{stroke:var(--card);stroke-width:1.4;cursor:pointer}.dot:hover{stroke:var(--fg);stroke-width:1.8}
+.cardhead .btns{display:flex;gap:8px;flex-wrap:wrap}
+button.tog[aria-pressed=false]{color:var(--mute)}
 .empty{color:var(--mute);margin:0}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;margin-top:8px}
 .sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
@@ -73,7 +76,7 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 </div>
 <div class="chips" id="chips"></div>
 <div class="mapwrap">
-  <div class="card mapcard"><div class="cardhead"><h2 id="maptitle">Map</h2><button id="natbtn">All of Canada</button></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
+  <div class="card mapcard"><div class="cardhead"><h2 id="maptitle">Map</h2><div class="btns"><button id="dotbtn" class="tog" type="button" aria-pressed="true">Newspapers: on</button><button id="natbtn">All of Canada</button></div></div><svg id="map" width="100%" viewBox="0 0 640 430"></svg><div id="scale" style="margin-top:8px"></div></div>
   <div class="charts" id="charts"></div>
 </div>
 <p class="note">Rates are the average of each outlet's own rate, so large outlets do not dominate. Outlet-quarters with fewer than 300 usable headlines are left out, so gaps are missing data, not zero use. Colour shows the outlet's Ground News leaning (red = left/lean left, grey = center, blue = lean right/right). In “Leaning” mode a province takes the colour of the side whose outlets use the term most there; the deeper the colour, the bigger the lead. A province with outlets from only one side in the dataset takes that side's full colour, even though there is nothing to compare it with. Postmedia owns most blue outlets and shares content between them. “All of Canada” averages every outlet in the country by leaning group (Left includes Lean Left; Right includes Lean Right); click a province to see the same three groups for its outlets. Provinces with no outlet in the dataset (the Atlantic provinces and the territories) cannot be shown.</p>
@@ -84,12 +87,13 @@ padding:6px 9px;font-size:13px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.15)
 <script>
 const D = window.DATA, Q = D.quarters, NS = "http://www.w3.org/2000/svg";
 const MAP = window.MAP, NOLABEL = {NB:1,NS:1,PE:1};
+const LEANLABEL={left:"Left",lean_left:"Lean left",center:"Center",lean_right:"Lean right",right:"Right"};
 const REG = {YT:"TER",NT:"TER",NU:"TER"};   // the three territories are shown as one region
 (function(){const P=MAP.paths,C=MAP.centres,parts=["YT","NT","NU"].filter(c=>P[c]);
   if(parts.length){P.TER=parts.map(c=>P[c]).join("");C.TER=[0,1].map(k=>parts.reduce((s,c)=>s+C[c][k],0)/parts.length);parts.forEach(c=>{delete P[c];delete C[c]})}})();
 const NAMES = {TER:"Northern Territories",BC:"British Columbia",AB:"Alberta",SK:"Saskatchewan",MB:"Manitoba",ON:"Ontario",QC:"Quebec",NB:"New Brunswick",NL:"Newfoundland and Labrador",PE:"Prince Edward Island",NS:"Nova Scotia",NAT:"All outlets (national)"};
 const GROUPCOL = {left:"var(--left)",center:"var(--center)",right:"var(--right)"};
-let terms = [], term = "", sel = -1, prov = "NAT", mode = "lean";   // term = the term the map shows
+let showDots = true, terms = [], term = "", sel = -1, prov = "NAT", mode = "lean";   // term = the term the map shows
 
 const $ = id => document.getElementById(id);
 function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
@@ -135,6 +139,22 @@ function region(svg,p,fill,isSel,tipHtml){
   path.addEventListener("click",()=>{prov=p;draw()});
 }
 function regionOrder(codes){const rank=p=>p===prov?2:(p==="TER"?0:1);return codes.slice().sort((a,b)=>rank(a)-rank(b))}
+function drawDots(svg){
+  if(!showDots||!MAP.dots)return;
+  const byCity={};
+  Object.keys(D.outlets).forEach(o=>{const d=MAP.dots[o];if(d&&D.outlets[o].province!=="NAT")(byCity[d[2]]=byCity[d[2]]||[]).push(o)});
+  Object.keys(byCity).forEach(city=>{
+    const os=byCity[city],n=os.length;
+    os.forEach((o,i)=>{
+      const d=MAP.dots[o],m=D.outlets[o],a=2*Math.PI*i/n-Math.PI/2,r=n>1?(n>3?6:4.2):0;   // papers in one city fan out around it
+      const c=el("circle",{cx:d[0]+r*Math.cos(a),cy:d[1]+r*Math.sin(a),r:3.4,class:"dot"},svg);
+      c.style.fill="var(--"+m.group+")";
+      c.addEventListener("mousemove",e=>tip(e,`<b>${m.name}</b><br>${d[2]} · ${LEANLABEL[m.leaning]||GNAME[m.group]}`));
+      c.addEventListener("mouseleave",()=>$("tip").style.display="none");
+      c.addEventListener("click",()=>{const p=REG[m.province]||m.province;if(MAP.paths[p]){prov=p;draw()}});
+    });
+  });
+}
 function drawMap(){
   const svg=$("map");svg.innerHTML="";
   svg.setAttribute("viewBox",`0 0 ${MAP.w} ${MAP.h}`);
@@ -143,6 +163,7 @@ function drawMap(){
     $("natbtn").textContent="All of Canada";$("natbtn").classList.toggle("on",prov==="NAT");
     $("scale").innerHTML='<div class="leg2"><span>Choose a term above to colour the map.</span></div>';
     $("maptitle").textContent="Choose terms";
+    drawDots(svg);
     return;
   }
   const codes=Object.keys(MAP.paths),vals={};
@@ -188,6 +209,7 @@ function drawMap(){
     ?`<div class="ramp"></div><div class="rampl"><span>0</span><span>${top.toFixed(top<10?2:1)} per 1,000 headlines</span></div>`
     :`<div class="leg2"><span><i style="background:var(--left)"></i>Left uses it most</span><span><i style="background:var(--center)"></i>Center</span><span><i style="background:var(--right)"></i>Right</span><span><i style="background:var(--nodata)"></i>No data</span></div>`;
   $("maptitle").textContent=`“${cap(term)}” — ${sel>=0?Q[sel]:"all quarters"}`;
+  drawDots(svg);
 }
 function tip(e,html){const t=$("tip");t.innerHTML=html;t.style.display="block";t.style.left=Math.min(e.clientX+14,innerWidth-200)+"px";t.style.top=(e.clientY+14)+"px"}
 
@@ -276,6 +298,7 @@ function toggleTerm(t,on){
 $("qslider").max=Q.length-1;
 $("qslider").addEventListener("input",e=>setSel(+e.target.value));
 $("allbtn").addEventListener("click",()=>{sel=-1;draw()});
+$("dotbtn").addEventListener("click",()=>{showDots=!showDots;$("dotbtn").setAttribute("aria-pressed",showDots);$("dotbtn").textContent="Newspapers: "+(showDots?"on":"off");draw()});
 $("natbtn").addEventListener("click",()=>{prov="NAT";draw()});
 [["lean","m-lean"],["rate","m-rate"]].forEach(([m,id])=>$(id).addEventListener("click",()=>{mode=m;$("m-lean").classList.toggle("on",m==="lean");$("m-rate").classList.toggle("on",m==="rate");draw()}));
 draw();
