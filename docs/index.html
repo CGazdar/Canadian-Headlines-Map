@@ -32,7 +32,7 @@ button.on{border-color:var(--fg)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
 .card h2{font-size:14px;margin:0 0 8px;color:var(--mute);font-weight:600}
 svg text{fill:var(--fg);font-family:inherit}
-.prov{stroke:var(--card);stroke-width:.8;stroke-linejoin:round;cursor:pointer}
+.prov{stroke:#fff;stroke-width:1.2;stroke-linejoin:round;cursor:pointer}   /* white borders once a term is chosen, in light and dark mode */
 .prov.nodata{cursor:default}
 /* before any term is chosen: no controls, red map with a soft inner glow along each border */
 body.pre .slider,body.pre #allbtn,body.pre .seg,body.pre #dotbtn,body.pre #natbtn{display:none}
@@ -267,11 +267,12 @@ function drawChart(svg,lg,ttl,t){
     lg.insertAdjacentHTML("beforeend",`<span><i class="sw" style="background:${l.col}"></i>${l.name}</span>`);
   });
   const hov=el("rect",{x:L,y:T,width:pw,height:ph,fill:"transparent"},svg);
+  const guide=el("line",{y1:T,y2:T+ph,stroke:"var(--fg)","stroke-width":1.3,"stroke-dasharray":"2 3",opacity:.8,"pointer-events":"none",visibility:"hidden"},svg);
   const idx=e=>{const r=svg.getBoundingClientRect(),px=(e.clientX-r.left)*W/r.width;return Math.max(0,Math.min(Q.length-1,Math.round((px-L)/pw*(Q.length-1))))};
   const nOut=(l,i)=>l.os.filter(o=>D.rates[t][o][i]!==null).length;
-  hov.addEventListener("mousemove",e=>{const i=idx(e);
+  hov.addEventListener("mousemove",e=>{const i=idx(e);guide.setAttribute("x1",X(i));guide.setAttribute("x2",X(i));guide.setAttribute("visibility","visible");
     tip(e,`<b>${Q[i]}</b><br>`+lines.map(l=>`${l.name}: ${fmt(l.vals[i])}${l.vals[i]===null?"":` (${nOut(l,i)} outlet${nOut(l,i)===1?"":"s"})`}`).join("<br>"))});
-  hov.addEventListener("mouseleave",()=>$("tip").style.display="none");
+  hov.addEventListener("mouseleave",()=>{$("tip").style.display="none";guide.setAttribute("visibility","hidden")});
   hov.addEventListener("click",e=>setSel(idx(e)));
 }
 function drawCharts(){

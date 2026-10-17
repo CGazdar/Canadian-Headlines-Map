@@ -144,10 +144,12 @@ function drawChart(svg,lg,ttl,t){
   });
   lg.insertAdjacentHTML("beforeend",`<span><i class="sw" style="background:none;border-top:2px dashed var(--fg);height:0"></i>All outlets, Canada</span>`);
   const hov=el("rect",{x:L,y:T,width:pw,height:ph,fill:"transparent"},svg);
+  const guide=el("line",{y1:T,y2:T+ph,stroke:"var(--fg)","stroke-width":1.3,"stroke-dasharray":"2 3",opacity:.8,"pointer-events":"none",visibility:"hidden"},svg);
   hov.addEventListener("mousemove",e=>{
     const r=svg.getBoundingClientRect(),px=(e.clientX-r.left)*W/r.width,i=Math.max(0,Math.min(Q.length-1,Math.round((px-L)/pw*(Q.length-1))));
+    guide.setAttribute("x1",X(i));guide.setAttribute("x2",X(i));guide.setAttribute("visibility","visible");
     tip(e,`<b>${Q[i]}</b><br>`+lines.map(l=>`${l.name}: ${fmt(l.vals[i])}`).join("<br>")+`<br>All outlets, Canada: ${fmt(natl[i])}`)});
-  hov.addEventListener("mouseleave",()=>$("tip").style.display="none");
+  hov.addEventListener("mouseleave",()=>{$("tip").style.display="none";guide.setAttribute("visibility","hidden")});
 }
 function drawCharts(){
   const box=$("charts");box.innerHTML="";box.className="charts n"+Math.min(terms.length,2);
