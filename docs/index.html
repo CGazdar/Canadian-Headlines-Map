@@ -36,9 +36,9 @@ svg text{fill:var(--fg);font-family:inherit}
 .prov.nodata{cursor:default}
 /* before any term is chosen: no controls, red map with a soft inner glow along each border */
 body.pre .slider,body.pre #allbtn,body.pre .seg,body.pre #dotbtn,body.pre #natbtn{display:none}
-#map.pre{background:#070f16;border-radius:10px}
-#map.pre .prov{fill:#16294a!important;stroke:#e5685a!important;stroke-width:1.6px!important;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(229,104,90,.75))}
-body.pre .mapcard{background:#070f16;border-color:#1c2b3a}
+#map.pre{background:#05090d;border-radius:10px}
+#map.pre .prov{fill:#0f141b!important;stroke:#e5685a!important;stroke-width:1.6px!important;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(229,104,90,.75))}
+body.pre .mapcard{background:#05090d;border-color:#1c2b3a}
 body.pre .mapcard h2{color:#9fb3c4}.prov.sel{stroke:var(--fg);stroke-width:2.2}
 .plabel{font-size:11px;font-weight:600;text-anchor:middle;pointer-events:none}
 .cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
@@ -149,7 +149,7 @@ function region(svg,p,fill,isSel,tipHtml){
   if(ter&&isSel){const h=el("path",{d:MAP.paths[p],class:"prov"},svg);h.style.fill="var(--fg)";h.style.stroke="var(--fg)";h.style.strokeWidth="4";h.style.pointerEvents="none"}
   const path=el("path",{d:MAP.paths[p],class:"prov"+(isSel&&!ter?" sel":"")},svg);
   path.style.fill=fill;
-  if(ter){path.style.stroke=fill;path.style.strokeWidth="1.4"}   // hides the seams between the three territories
+  if(ter){path.style.stroke=fill;path.style.strokeWidth="1.4";if(term)path.style.filter="url(#terring)"}   // fill hides the seams between the three territories; the ring gives the whole region one white outline   // hides the seams between the three territories
   path.addEventListener("mousemove",e=>tip(e,tipHtml));
   path.addEventListener("mouseleave",()=>$("tip").style.display="none");
   path.addEventListener("click",()=>{prov=p;draw()});
@@ -190,6 +190,10 @@ function drawDots(svg){
 }
 function drawMap(){
   const svg=$("map");svg.innerHTML="";svg.classList.toggle("pre",!term);
+  el("defs",{},svg).innerHTML=`<filter id="terring" x="-3%" y="-3%" width="106%" height="106%">
+    <feMorphology in="SourceAlpha" operator="dilate" radius="1" result="dil"/>
+    <feFlood flood-color="#fff"/><feComposite in2="dil" operator="in" result="ring"/>
+    <feMerge><feMergeNode in="ring"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
   svg.setAttribute("viewBox",`0 0 ${MAP.w} ${MAP.h}`);
   if(!term){
     regionOrder(Object.keys(MAP.paths)).forEach(p=>region(svg,p,"var(--nodata)",false,`<b>${NAMES[p]}</b><br>Choose a term to see results`));
