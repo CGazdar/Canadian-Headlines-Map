@@ -36,7 +36,7 @@ OUTLET_CITIES = {
     "gazette": ("Montreal", 45.5017, -73.5673), "lapresse": ("Montreal", 45.5017, -73.5673),
     "ledevoir": ("Montreal", 45.5017, -73.5673), "jdm": ("Montreal", 45.5017, -73.5673),
     "chronicleherald": ("Halifax", 44.6488, -63.5752), "saltwire": ("Halifax", 44.6488, -63.5752),
-    "telegraph": ("Saint John", 45.2733, -66.0633),
+    "telegraph": ("Saint John", 45.2733, -66.0633), "cbcnorth": ("Yellowknife", 62.4540, -114.3718),
 }
 
 
