@@ -26,4 +26,4 @@ ledevoir,Le Devoir,ledevoir.com,QC,provincial,fr,center,2026-10-15,,French: need
 jdm,Journal de Montréal,journaldemontreal.com,QC,provincial,fr,right,2026-10-15,,French: needs separate tokenizer and stopwords,Quebecor
 chronicleherald,Chronicle Herald,thechronicleherald.ca,NS,provincial,en,,,,,Halifax Herald
 saltwire,SaltWire Network,saltwire.com,NS,provincial,en,,,,Successor to chronicleherald.ca; Atlantic-wide brands,SaltWire
-cbcnorth,CBC North,cbc.ca/north,NT,provincial,en,<same as the cbc row>,,https://www.cbc.ca/webfeed/rss/rss-canada-north,Split out of cbc by address; covers YT NT NU,CBC
+cbcnorth,CBC North,cbc.ca/north,NT,provincial,en,lean_left,,https://www.cbc.ca/webfeed/rss/rss-canada-north,Split out of cbc by address; covers YT NT NU,CBC
